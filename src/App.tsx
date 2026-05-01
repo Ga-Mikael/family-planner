@@ -487,6 +487,7 @@ export default function App() {
   const [session,   setSession]   = useState<Session|null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [dataReady, setDataReady] = useState(false);
+  const [dbError,   setDbError]   = useState<string|null>(null);
   const [needsSetup,setNeedsSetup]= useState(false); // true = premier lancement, affiche le formulaire famille
   const [members,   setMembers]   = useState<Member[]>([]);
   const [tasks,     setTasks]     = useState<Task[]>([]);
@@ -517,6 +518,15 @@ export default function App() {
       supabase.from("groceries").select("*").eq("user_id",uid).order("created_at"),
       supabase.from("reminders").select("*").eq("user_id",uid),
     ]);
+
+    const firstErr = [mR.error, tR.error, meR.error, gR.error, rR.error].find(Boolean);
+    if (firstErr) {
+      console.error("Supabase loadData error:", firstErr);
+      setDbError(`Erreur base de données : ${firstErr.message}`);
+      setDataReady(true);
+      return;
+    }
+    setDbError(null);
 
     if (mR.data) {
       if (mR.data.length === 0) {
@@ -565,71 +575,74 @@ export default function App() {
   /* ── CRUD — toutes les écritures vont vers Supabase, le realtime met à jour l'état ── */
   const uid=()=>session!.user.id;
 
+  const logErr=(op:string,e:{message:string}|null)=>{ if(e){ console.error(`Supabase ${op}:`,e); setDbError(`Erreur (${op}) : ${e.message}`); } };
+
   const addTask=async(t:Task)=>{
     setTasks(p=>[...p,t]); burst();
-    await supabase.from("tasks").insert(fromTask(t,uid()));
+    const {error}=await supabase.from("tasks").insert(fromTask(t,uid())); logErr("addTask",error);
   };
   const deleteTask=async(id:string)=>{
     setTasks(p=>p.filter(t=>t.id!==id));
-    await supabase.from("tasks").delete().eq("id",id);
+    const {error}=await supabase.from("tasks").delete().eq("id",id); logErr("deleteTask",error);
   };
   const toggleTask=async(id:string)=>{
     const task=tasks.find(t=>t.id===id); if(!task) return;
     const done=!task.done;
     setTasks(p=>p.map(t=>t.id===id?{...t,done}:t));
     if(done) burst();
-    await supabase.from("tasks").update({done}).eq("id",id);
+    const {error}=await supabase.from("tasks").update({done}).eq("id",id); logErr("toggleTask",error);
   };
   const addGrocery=async(g:Omit<Grocery,"id">)=>{
     const row=fromGroc(g,uid());
     setGroceries(p=>[...p,{...g,id:row.id}]);
-    await supabase.from("groceries").insert(row);
+    const {error}=await supabase.from("groceries").insert(row); logErr("addGrocery",error);
   };
   const toggleGroc=async(id:string)=>{
     const g=groceries.find(x=>x.id===id); if(!g) return;
     const done=!g.done;
     setGroceries(p=>p.map(x=>x.id===id?{...x,done}:x));
-    await supabase.from("groceries").update({done}).eq("id",id);
+    const {error}=await supabase.from("groceries").update({done}).eq("id",id); logErr("toggleGroc",error);
   };
   const deleteGroc=async(id:string)=>{
     setGroceries(p=>p.filter(x=>x.id!==id));
-    await supabase.from("groceries").delete().eq("id",id);
+    const {error}=await supabase.from("groceries").delete().eq("id",id); logErr("deleteGroc",error);
   };
   const updateMeals=async(newMeals:Meals)=>{
     setMeals(newMeals);
     const rows=Object.entries(newMeals).map(([d,m])=>({day:parseInt(d),meal:m||"",user_id:uid()}));
-    await supabase.from("meals").upsert(rows,{onConflict:"day,user_id"});
+    const {error}=await supabase.from("meals").upsert(rows,{onConflict:"day,user_id"}); logErr("updateMeals",error);
   };
   const addReminder=async(r:Omit<Reminder,"id">)=>{
     const row=fromRem(r,uid());
     setReminders(p=>[...p,{...r,id:row.id}]);
-    await supabase.from("reminders").insert(row);
+    const {error}=await supabase.from("reminders").insert(row); logErr("addReminder",error);
   };
   const deleteRem=async(id:string)=>{
     setReminders(p=>p.filter(x=>x.id!==id));
-    await supabase.from("reminders").delete().eq("id",id);
+    const {error}=await supabase.from("reminders").delete().eq("id",id); logErr("deleteRem",error);
   };
   const updateMember=async(m:Member)=>{
     setMembers(p=>p.map(x=>x.id===m.id?m:x));
     const idx=members.findIndex(x=>x.id===m.id);
-    await supabase.from("members").update(fromMember(m,uid(),idx)).eq("id",m.id);
+    const {error}=await supabase.from("members").update(fromMember(m,uid(),idx)).eq("id",m.id); logErr("updateMember",error);
   };
   const addMember=async(m:Pick<Member,"name"|"emoji">)=>{
     const c=MEMBER_COLORS[members.length%MEMBER_COLORS.length];
     const full:Member={id:"m"+Date.now(),...m,...c,workDays:[],workHours:{}};
     setMembers(p=>[...p,full]);
-    await supabase.from("members").insert(fromMember(full,uid(),members.length));
+    const {error}=await supabase.from("members").insert(fromMember(full,uid(),members.length)); logErr("addMember",error);
   };
   const deleteMember=async(id:string)=>{
     setMembers(p=>p.filter(m=>m.id!==id));
-    await supabase.from("members").delete().eq("id",id);
+    const {error}=await supabase.from("members").delete().eq("id",id); logErr("deleteMember",error);
   };
   const signOut=()=>supabase.auth.signOut();
 
   // Appelée par FamilySetupScreen quand la famille est configurée
   const finishSetup = async (setupMembers: Member[]) => {
     const u = uid();
-    await supabase.from("members").insert(setupMembers.map((m,i) => fromMember(m, u, i)));
+    const {error}=await supabase.from("members").insert(setupMembers.map((m,i) => fromMember(m, u, i)));
+    if (error) { logErr("finishSetup",error); return; }
     setMembers(setupMembers);
     setNeedsSetup(false);
   };
@@ -653,6 +666,16 @@ export default function App() {
       {confetti.map(c=>(
         <div key={c.id} style={{position:"fixed",left:`${c.x}%`,top:"40%",width:9,height:9,borderRadius:2,background:c.color,animationName:"confDrop",animationDuration:".9s",animationDelay:`${c.delay}s`,animationFillMode:"forwards",pointerEvents:"none",zIndex:9999}}/>
       ))}
+      {dbError && (
+        <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:430,zIndex:9998,padding:"10px 16px",background:"#FEF2F2",borderBottom:"2px solid #FCA5A5",display:"flex",alignItems:"flex-start",gap:8}}>
+          <span style={{fontSize:"1rem",flexShrink:0}}>⚠️</span>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:700,fontSize:".78rem",color:"#DC2626",marginBottom:2}}>Problème Supabase — les données ne sont pas sauvegardées</div>
+            <div style={{fontSize:".72rem",color:"#7F1D1D",fontFamily:"monospace",wordBreak:"break-all"}}>{dbError}</div>
+          </div>
+          <button onClick={()=>setDbError(null)} style={{background:"none",border:"none",cursor:"pointer",color:"#DC2626",fontSize:16,padding:0,lineHeight:1,flexShrink:0}}>✕</button>
+        </div>
+      )}
       <div style={{flex:1,overflowY:"auto",paddingBottom:72}}>
         {tab==="home"     && <HomeView     {...p}/>}
         {tab==="tasks"    && <TasksView    {...p}/>}
