@@ -55,6 +55,46 @@ const fromTask   = (t: Task,   uid: string) => ({id:t.id,name:t.name,member_id:t
 const fromMember = (m: Member, uid: string, order: number) => ({id:m.id,name:m.name,emoji:m.emoji,color:m.color,avatar_bg:m.avatarBg,is_child:m.isChild??false,work_days:m.workDays,work_hours:m.workHours,sort_order:order,user_id:uid});
 const fromGroc   = (g: Omit<Grocery,"id">, uid: string) => ({id:"g"+Date.now(),name:g.name,qty:g.qty,done:g.done,user_id:uid});
 const fromRem    = (r: Omit<Reminder,"id">, uid: string) => ({id:"r"+Date.now(),title:r.title,time:r.time,day:r.day,emoji:r.emoji,user_id:uid});
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const toRoom=(r:any):Room=>({id:r.id,name:r.name,icon:r.icon as IconName,color:r.color});
+const fromRoom=(r:Room,uid:string,order:number)=>({id:r.id,name:r.name,icon:r.icon,color:r.color,sort_order:order,user_id:uid});
+
+function easterDate(year:number):Date{
+  const a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4;
+  const f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30;
+  const i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451);
+  return new Date(year,Math.floor((h+l-7*m+114)/31)-1,((h+l-7*m+114)%31)+1);
+}
+const dateKey=(d:Date)=>`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+function getFrenchHolidays(year:number):Map<string,string>{
+  const h=new Map<string,string>();
+  const add=(m:number,d:number,n:string)=>h.set(dateKey(new Date(year,m-1,d)),n);
+  add(1,1,"Jour de l'An");add(5,1,"Fête du Travail");add(5,8,"Victoire 1945");
+  add(7,14,"Fête Nationale");add(8,15,"Assomption");add(11,1,"Toussaint");
+  add(11,11,"Armistice");add(12,25,"Noël");
+  const ea=easterDate(year),ad=(d:Date,n:number)=>new Date(d.getTime()+n*864e5);
+  h.set(dateKey(ad(ea,1)),"Lundi de Pâques");
+  h.set(dateKey(ad(ea,39)),"Ascension");
+  h.set(dateKey(ad(ea,50)),"Lundi de Pentecôte");
+  return h;
+}
+interface Vacation{name:string;start:Date;end:Date;color:string;}
+const VACANCES:Vacation[]=[
+  {name:"Toussaint", start:new Date(2024,9,19), end:new Date(2024,10,4),  color:"#F59E0B"},
+  {name:"Noël",      start:new Date(2024,11,21),end:new Date(2025,0,6),   color:"#3B82F6"},
+  {name:"Hiver",     start:new Date(2025,1,22), end:new Date(2025,2,10),  color:"#06B6D4"},
+  {name:"Printemps", start:new Date(2025,3,19), end:new Date(2025,4,5),   color:"#10B981"},
+  {name:"Été",       start:new Date(2025,6,5),  end:new Date(2025,8,1),   color:"#EC4899"},
+  {name:"Toussaint", start:new Date(2025,9,18), end:new Date(2025,10,3),  color:"#F59E0B"},
+  {name:"Noël",      start:new Date(2025,11,20),end:new Date(2026,0,5),   color:"#3B82F6"},
+  {name:"Hiver",     start:new Date(2026,1,21), end:new Date(2026,2,9),   color:"#06B6D4"},
+  {name:"Printemps", start:new Date(2026,3,18), end:new Date(2026,4,4),   color:"#10B981"},
+  {name:"Été",       start:new Date(2026,6,4),  end:new Date(2026,8,1),   color:"#EC4899"},
+];
+function getVacation(date:Date):Vacation|null{
+  const t=date.getTime();
+  return VACANCES.find(v=>t>=v.start.getTime()&&t<=v.end.getTime())??null;
+}
 
 /* ═══════════════════════════════════════════════════════
    CONSTANTS
@@ -492,6 +532,7 @@ export default function App() {
   const [groceries, setGroceries] = useState<Grocery[]>([]);
   const [meals,     setMeals]     = useState<Meals>({0:"",1:"",2:"",3:"",4:"",5:"",6:""});
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [rooms,     setRooms]     = useState<Room[]>([]);
   const [tab,       setTab]       = useState<TabId>("home");
   const [selDay,    setSelDay]    = useState<DayIndex>(todayIdx());
   const [weekOff,   setWeekOff]   = useState(0);
@@ -509,15 +550,16 @@ export default function App() {
 
   /* ── LOAD DATA ── */
   const loadData = useCallback(async (uid: string) => {
-    const [tR,mR,meR,gR,rR] = await Promise.all([
+    const [tR,mR,meR,gR,rR,roR] = await Promise.all([
       supabase.from("tasks").select("*").eq("user_id",uid).order("created_at"),
       supabase.from("members").select("*").eq("user_id",uid).order("sort_order"),
       supabase.from("meals").select("*").eq("user_id",uid),
       supabase.from("groceries").select("*").eq("user_id",uid).order("created_at"),
       supabase.from("reminders").select("*").eq("user_id",uid),
+      supabase.from("rooms").select("*").eq("user_id",uid).order("sort_order"),
     ]);
 
-    const firstErr = [mR.error, tR.error, meR.error, gR.error, rR.error].find(Boolean);
+    const firstErr = [mR.error, tR.error, meR.error, gR.error, rR.error, roR.error].find(Boolean);
     if (firstErr) {
       console.error("Supabase loadData error:", firstErr);
       setDbError(`Erreur base de données : ${firstErr.message}`);
@@ -545,6 +587,11 @@ export default function App() {
     }
     if (gR.data) setGroceries(gR.data.map(toGroc));
     if (rR.data) setReminders(rR.data.map(toRem));
+    if (roR.data && roR.data.length > 0) setRooms(roR.data.map(toRoom));
+    else if (roR.data && roR.data.length === 0 && mR.data && mR.data.length > 0) {
+      await supabase.from("rooms").insert(DEFAULT_ROOMS.map((r,i)=>fromRoom(r,uid,i)));
+      setRooms(DEFAULT_ROOMS);
+    }
     setDataReady(true);
   },[]);
 
@@ -634,6 +681,18 @@ export default function App() {
     setMembers(p=>p.filter(m=>m.id!==id));
     const {error}=await supabase.from("members").delete().eq("id",id); logErr("deleteMember",error);
   };
+  const addRoom=async(r:Omit<Room,"id">)=>{
+    const full:Room={id:"rm"+Date.now(),...r};
+    setRooms(p=>[...p,full]);
+    const {error}=await supabase.from("rooms").insert(fromRoom(full,uid(),rooms.length)); logErr("addRoom",error);
+  };
+  const deleteRoom=async(id:string)=>{
+    if(id==="r-general") return;
+    setRooms(p=>p.filter(r=>r.id!==id));
+    setTasks(p=>p.map(t=>t.roomId===id?{...t,roomId:"r-general"}:t));
+    await supabase.from("tasks").update({room_id:"r-general"}).eq("room_id",id).eq("user_id",uid());
+    const {error}=await supabase.from("rooms").delete().eq("id",id); logErr("deleteRoom",error);
+  };
   const signOut=()=>supabase.auth.signOut();
 
   // Appelée par FamilySetupScreen quand la famille est configurée
@@ -642,15 +701,16 @@ export default function App() {
     const {error}=await supabase.from("members").insert(setupMembers.map((m,i) => fromMember(m, u, i)));
     if (error) { logErr("finishSetup",error); return; }
     setMembers(setupMembers);
+    await supabase.from("rooms").insert(DEFAULT_ROOMS.map((r,i)=>fromRoom(r,u,i)));
+    setRooms(DEFAULT_ROOMS);
     setNeedsSetup(false);
   };
 
   const weekendWarn=tasks.filter(t=>isWeekend(t.day)&&!t.done).length>=8;
-  const rooms=DEFAULT_ROOMS;
 
   const p={members,tasks,rooms,groceries,meals,reminders,selDay,setSelDay,weekOff,setWeekOff,
     addTask,deleteTask,toggleTask,addGrocery,toggleGroc,deleteGroc,updateMeals,addReminder,deleteRem,
-    updateMember,addMember,deleteMember,weekendWarn,burst};
+    updateMember,addMember,deleteMember,addRoom,deleteRoom,weekendWarn,burst};
 
   /* ── RENDER ── */
   if (!authReady)   return <LoadingScreen message="Initialisation…"/>;
@@ -724,6 +784,7 @@ type VP={
   addGrocery:(g:Omit<Grocery,"id">)=>void;toggleGroc:(id:string)=>void;deleteGroc:(id:string)=>void;
   updateMeals:(m:Meals)=>void;addReminder:(r:Omit<Reminder,"id">)=>void;deleteRem:(id:string)=>void;
   updateMember:(m:Member)=>void;addMember:(m:Pick<Member,"name"|"emoji"> & {color?:string;avatarBg?:string})=>void;deleteMember:(id:string)=>void;
+  addRoom:(r:Omit<Room,"id">)=>void;deleteRoom:(id:string)=>void;
   weekendWarn:boolean;burst:()=>void;
 };
 
@@ -735,6 +796,8 @@ function HomeView({members,tasks,meals,reminders,selDay,setSelDay,weekOff,setWee
   const start=new Date(); start.setDate(start.getDate()-today+weekOff*7);
   const dates=DAYS_S.map((_,i)=>{const d=new Date(start);d.setDate(start.getDate()+i);return d.getDate();});
   const month=MONTHS[new Date(start).getMonth()];
+  const baseMonday=(()=>{const d=new Date();d.setDate(d.getDate()-todayIdx()+weekOff*7);d.setHours(0,0,0,0);return d;})();
+  const getWeekDate=(i:number)=>{const d=new Date(baseMonday);d.setDate(baseMonday.getDate()+i);return d;};
 
   const[addFor,  setAddFor]  =useState<DayIndex|null>(null);
   const[inName,  setInName]  =useState("");
@@ -795,11 +858,15 @@ function HomeView({members,tasks,meals,reminders,selDay,setSelDay,weekOff,setWee
           const d=i as DayIndex;
           const isTd=d===today&&weekOff===0,isSel=d===selDay,isWe=isWeekend(d);
           const cnt=dayItems(d).length,doneCnt=dayItems(d).filter(t=>t.done).length;
+          const wd=getWeekDate(i);
+          const wdHol=getFrenchHolidays(wd.getFullYear()).get(dateKey(wd));
+          const wdVac=getVacation(wd);
           return (
             <button key={i} onClick={()=>setSelDay(d)} style={{border:"none",background:"none",cursor:"pointer",textAlign:"center",padding:"4px 2px"}}>
               <div style={{fontSize:".58rem",fontWeight:700,color:isWe?"var(--warn)":"var(--muted2)",marginBottom:3,textTransform:"uppercase"}}>{DAYS_S[i]}</div>
               <div style={{width:34,height:34,borderRadius:"50%",margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"center",background:isSel?"var(--text)":isTd?"#F3F4F6":"transparent",fontWeight:isSel||isTd?800:500,fontSize:".95rem",color:isSel?"white":"var(--text)",transition:"all .2s"}}>{dates[i]}</div>
               {cnt>0&&<div style={{marginTop:3,display:"flex",justifyContent:"center"}}><div style={{height:3,borderRadius:99,background:doneCnt===cnt?"var(--green)":"var(--accent)",width:Math.min(24,cnt*6)+"%",minWidth:6,opacity:isSel?.9:.5}}/></div>}
+              {(wdHol||wdVac)&&<div style={{width:4,height:4,borderRadius:"50%",background:wdHol?"#DC2626":(wdVac?.color??"#888"),marginTop:1,margin:"1px auto 0"}}/>}
             </button>
           );
         })}
@@ -1049,10 +1116,14 @@ function FullTaskCard({task,members,rooms,onToggle,onDelete}:{task:Task;members:
 /* ═══════════════════════════════════════════════════════
    AGENDA VIEW (calendrier mensuel)
 ═══════════════════════════════════════════════════════ */
-function AgendaView({tasks,members,rooms}:VP) {
+function AgendaView({tasks,members,rooms,addTask}:VP) {
   const today=new Date();
   const[viewDate,setViewDate]=useState(new Date(today.getFullYear(),today.getMonth(),1));
   const[detailDay,setDetailDay]=useState<number|null>(null);
+  const[showAddForm,setShowAddForm]=useState(false);
+  const[aName,setAName]=useState("");
+  const[aMember,setAMember]=useState("");
+  const[aPrio,setAPrio]=useState<Priority>("med");
 
   const year=viewDate.getFullYear(),month=viewDate.getMonth();
   const daysInMonth=new Date(year,month+1,0).getDate();
@@ -1094,12 +1165,15 @@ function AgendaView({tasks,members,rooms}:VP) {
             const dtl=tasksByDom(dom);
             const doneAll=dtl.length>0&&dtl.every(t=>t.done),hasHigh=dtl.some(t=>t.priority==="high"&&!t.done);
             const dotColors=[...new Set(dtl.map(t=>members.find(m=>m.id===t.memberId)?.color).filter(Boolean))].slice(0,3) as string[];
+            const holiday=getFrenchHolidays(year).get(dateKey(date));
+            const vac=getVacation(date);
             return (
               <button key={dom} onClick={()=>setDetailDay(isSel?null:dom)} style={{border:`1.5px solid ${isSel?"var(--text)":isToday?"var(--accent)":"transparent"}`,borderRadius:10,padding:"5px 2px 4px",background:isSel?"var(--text)":isToday?"var(--accent-bg)":"transparent",cursor:"pointer",textAlign:"center",transition:"all .15s",position:"relative"}}>
                 <div style={{fontSize:".88rem",fontWeight:isToday||isSel?800:500,color:isSel?"white":isToday?"var(--accent)":isWe?"#D97706":"var(--text)",lineHeight:1.2}}>{dom}</div>
                 <div style={{display:"flex",justifyContent:"center",gap:2,marginTop:3,minHeight:5}}>
                   {dtl.length===0?null:doneAll?<div style={{width:5,height:5,borderRadius:"50%",background:isSel?"white":"var(--green)"}}/>:dotColors.length>0?dotColors.map((c,ci)=><div key={ci} style={{width:4,height:4,borderRadius:"50%",background:isSel?"white":c}}/>):<div style={{width:4,height:4,borderRadius:"50%",background:isSel?"white":"var(--accent)"}}/>}
                 </div>
+                {(holiday||vac)&&<div style={{width:4,height:4,borderRadius:"50%",background:holiday?"#DC2626":vac!.color,margin:"1px auto 0"}}/>}
                 {hasHigh&&<div style={{position:"absolute",top:2,right:3,width:5,height:5,borderRadius:"50%",background:"var(--danger)"}}/>}
               </button>
             );
@@ -1113,9 +1187,37 @@ function AgendaView({tasks,members,rooms}:VP) {
                 <div style={{fontWeight:800,fontSize:".95rem"}}>{DAYS_F[selDow]} {detailDay} {MONTHS[month]}</div>
                 <div style={{fontSize:".68rem",color:"var(--muted)",marginTop:1}}>{selTasks.filter(t=>t.done).length}/{selTasks.length} tâches</div>
               </div>
-              <button onClick={()=>setDetailDay(null)} style={{width:28,height:28,borderRadius:8,border:"1px solid var(--border)",background:"white",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"var(--muted)"}}><Icon name="x" size={13}/></button>
+              <div style={{display:"flex",gap:6}}>
+                <button onClick={()=>{setShowAddForm(f=>!f);setAName("");setAMember("");setAPrio("med");}} style={{width:28,height:28,borderRadius:8,border:"1px solid var(--border)",background:showAddForm?"var(--text)":"white",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:showAddForm?"white":"var(--muted)"}}><Icon name="plus" size={14} sw={2.5}/></button>
+                <button onClick={()=>{setDetailDay(null);setShowAddForm(false);}} style={{width:28,height:28,borderRadius:8,border:"1px solid var(--border)",background:"white",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"var(--muted)"}}><Icon name="x" size={13}/></button>
+              </div>
             </div>
-            {selTasks.length===0?<div style={{textAlign:"center",padding:"16px 0",color:"var(--muted2)",fontSize:".8rem",fontStyle:"italic"}}>Aucune tâche ce jour 😌</div>:(
+            {(()=>{
+              const dt=new Date(year,month,detailDay!);
+              const hol=getFrenchHolidays(year).get(dateKey(dt));
+              const vac2=getVacation(dt);
+              return (hol||vac2)&&(
+                <div style={{background:hol?"#FEF2F2":vac2!.color+"20",border:`1px solid ${hol?"#FCA5A5":vac2!.color+"60"}`,borderRadius:8,padding:"5px 10px",marginBottom:10,fontSize:".75rem",fontWeight:700,color:hol?"#DC2626":vac2!.color}}>
+                  {hol?"🎉 "+hol:vac2&&"🏖️ Vacances "+vac2.name}
+                </div>
+              );
+            })()}
+            {showAddForm&&(
+              <div style={{background:"white",borderRadius:12,padding:"10px 12px",marginBottom:10,display:"flex",flexDirection:"column",gap:8,animation:"fadeUp .15s ease"}}>
+                <input autoFocus value={aName} onChange={e=>setAName(e.target.value)} placeholder="Nom de la tâche…" style={{...IS,background:"var(--soft)",fontSize:".82rem"}} onKeyDown={e=>{if(e.key==="Enter"&&aName.trim()){addTask({id:"t"+Date.now(),name:aName.trim(),memberId:aMember,roomId:"r-general",day:selDow!,priority:aPrio,recurrence:"once",done:false});setAName("");setShowAddForm(false);}}}/>
+                <div style={{display:"flex",gap:6}}>
+                  <select value={aMember} onChange={e=>setAMember(e.target.value)} style={{...IS,flex:1,fontSize:".78rem",background:"var(--soft)"}}>
+                    <option value="">Membre…</option>
+                    {members.map(m=><option key={m.id} value={m.id}>{m.emoji} {m.name}</option>)}
+                  </select>
+                  <select value={aPrio} onChange={e=>setAPrio(e.target.value as Priority)} style={{...IS,width:100,fontSize:".78rem",background:"var(--soft)"}}>
+                    {(Object.entries(PRIORITY_CONFIG) as [Priority,{label:string;color:string;bg:string}][]).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
+                  </select>
+                </div>
+                <button onClick={()=>{if(!aName.trim())return;addTask({id:"t"+Date.now(),name:aName.trim(),memberId:aMember,roomId:"r-general",day:selDow!,priority:aPrio,recurrence:"once",done:false});setAName("");setShowAddForm(false);}} style={{...PB,fontSize:".82rem",padding:"9px"}}>Ajouter la tâche</button>
+              </div>
+            )}
+            {selTasks.length===0&&!showAddForm?<div style={{textAlign:"center",padding:"16px 0",color:"var(--muted2)",fontSize:".8rem",fontStyle:"italic"}}>Aucune tâche ce jour 😌</div>:(
               <div style={{display:"flex",flexDirection:"column",gap:6}}>
                 {selTasks.map(t=>{
                   const m=members.find(x=>x.id===t.memberId),r=rooms.find(x=>x.id===t.roomId);
@@ -1268,13 +1370,17 @@ function ScheduleView({members,tasks,updateMember}:VP) {
 /* ═══════════════════════════════════════════════════════
    FOYER VIEW (membres + pièces + cuisine + déco)
 ═══════════════════════════════════════════════════════ */
-function FamilyView({members,tasks,rooms,groceries,meals,reminders,addGrocery,toggleGroc,deleteGroc,updateMeals,addReminder,deleteRem,addTask,toggleTask,deleteTask,addMember,deleteMember,onSignOut,userEmail}:VP&{onSignOut:()=>void;userEmail:string}) {
+function FamilyView({members,tasks,rooms,groceries,meals,reminders,addGrocery,toggleGroc,deleteGroc,updateMeals,addReminder,deleteRem,addTask,toggleTask,deleteTask,addMember,deleteMember,addRoom,deleteRoom,onSignOut,userEmail}:VP&{onSignOut:()=>void;userEmail:string}) {
   const[section,setSection]=useState<"foyer"|"cuisine"|"rappels">("foyer");
   const[selRoom,setSelRoom]=useState<string|null>(null);
   const[showMemberForm,setShowMemberForm]=useState(false);
   const[newName,setNewName]=useState(""),newEmoji=useState("")[0];
   const[nEmoji,setNEmoji]=useState("");
   const[nColorIdx,setNColorIdx]=useState(0);
+  const[showRoomAddForm,setShowRoomAddForm]=useState(false);
+  const[roomName,setRoomName]=useState("");
+  const[roomIcon,setRoomIcon]=useState<IconName>("home");
+  const[roomColorIdx,setRoomColorIdx]=useState(0);
 
   // Room task form
   const[showRoomForm,setShowRoomForm]=useState(false);
@@ -1390,6 +1496,7 @@ function FamilyView({members,tasks,rooms,groceries,meals,reminders,addGrocery,to
                   return (
                     <button key={r.id} onClick={()=>setSelRoom(r.id)} style={{background:"white",border:"1.5px solid var(--border)",borderRadius:14,padding:"12px 12px 10px",textAlign:"left",cursor:"pointer",position:"relative",overflow:"hidden"}}>
                       <div style={{position:"absolute",inset:0,background:r.color,opacity:.04}}/>
+                      {r.id!=="r-general"&&<button onClick={(e)=>{e.stopPropagation();deleteRoom(r.id);}} style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,.06)",border:"none",borderRadius:"50%",width:18,height:18,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",zIndex:1,color:"var(--muted)"}}><Icon name="x" size={10} sw={2.5}/></button>}
                       <div style={{width:32,height:32,borderRadius:8,background:r.color+"18",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:6}}><Icon name={r.icon} size={16} color={r.color}/></div>
                       <div style={{fontWeight:700,fontSize:".78rem",marginBottom:2}}>{r.name}</div>
                       <div style={{fontSize:".65rem",color:"var(--muted)",marginBottom:6}}>{rt.length-rd} à faire</div>
@@ -1398,6 +1505,33 @@ function FamilyView({members,tasks,rooms,groceries,meals,reminders,addGrocery,to
                   );
                 })}
               </div>
+              {showRoomAddForm?(
+                <div style={{background:"var(--soft)",border:"1px solid var(--border)",borderRadius:14,padding:14,marginTop:8,animation:"fadeUp .2s ease"}}>
+                  <input value={roomName} onChange={e=>setRoomName(e.target.value)} placeholder="Nom de la pièce…" style={{...IS,background:"white",marginBottom:10}} autoFocus/>
+                  <div style={{fontSize:".72rem",fontWeight:700,color:"var(--muted)",marginBottom:6,textTransform:"uppercase",letterSpacing:".5px"}}>Icône</div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
+                    {(["sofa","chef","bath","bed","door","dog","child","broom","home","sparkle","briefcase","star","bell"] as IconName[]).map(ic=>(
+                      <button key={ic} onClick={()=>setRoomIcon(ic)} style={{width:34,height:34,borderRadius:8,border:`2px solid ${roomIcon===ic?"var(--text)":"var(--border)"}`,background:roomIcon===ic?"var(--text)":"white",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
+                        <Icon name={ic} size={15} color={roomIcon===ic?"white":"var(--muted)"} sw={1.8}/>
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{fontSize:".72rem",fontWeight:700,color:"var(--muted)",marginBottom:6,textTransform:"uppercase",letterSpacing:".5px"}}>Couleur</div>
+                  <div style={{display:"flex",gap:7,marginBottom:12}}>
+                    {MEMBER_COLORS.map((c,ci)=>(
+                      <div key={ci} onClick={()=>setRoomColorIdx(ci)} style={{width:22,height:22,borderRadius:"50%",background:c.color,cursor:"pointer",boxShadow:roomColorIdx===ci?`0 0 0 2px white, 0 0 0 4px ${c.color}`:"none",transition:"box-shadow .15s"}}/>
+                    ))}
+                  </div>
+                  <div style={{display:"flex",gap:6}}>
+                    <button onClick={()=>{if(!roomName.trim())return;addRoom({name:roomName.trim(),icon:roomIcon,color:MEMBER_COLORS[roomColorIdx].color});setRoomName("");setRoomIcon("home");setRoomColorIdx(0);setShowRoomAddForm(false);}} style={{...PB,flex:1,fontSize:".82rem"}}>Ajouter</button>
+                    <button onClick={()=>setShowRoomAddForm(false)} style={{...GB,fontSize:".82rem"}}>Annuler</button>
+                  </div>
+                </div>
+              ):(
+                <button onClick={()=>setShowRoomAddForm(true)} style={{width:"100%",padding:"9px",background:"var(--soft)",border:"1.5px dashed var(--border)",borderRadius:12,color:"var(--muted)",fontSize:".78rem",fontWeight:600,cursor:"pointer",marginTop:8,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                  <Icon name="plus" size={13} sw={2.5}/> Ajouter une pièce
+                </button>
+              )}
             </div>
 
             {/* Account info */}

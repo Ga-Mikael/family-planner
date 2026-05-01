@@ -76,6 +76,19 @@ alter table public.reminders enable row level security;
 create policy "reminders_own" on public.reminders
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- PIÈCES
+create table if not exists public.rooms (
+  id          text    primary key,
+  name        text    not null,
+  icon        text    not null default 'home',
+  color       text    not null default '#64748B',
+  sort_order  integer not null default 0,
+  user_id     uuid    not null references auth.users(id) on delete cascade
+);
+alter table public.rooms enable row level security;
+create policy "rooms_own" on public.rooms
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 -- Permissions pour les utilisateurs authentifiés (indispensable avec RLS)
 grant usage on schema public to anon, authenticated;
 grant select, insert, update, delete on public.tasks      to authenticated;
@@ -83,6 +96,7 @@ grant select, insert, update, delete on public.members    to authenticated;
 grant select, insert, update, delete on public.meals      to authenticated;
 grant select, insert, update, delete on public.groceries  to authenticated;
 grant select, insert, update, delete on public.reminders  to authenticated;
+grant select, insert, update, delete on public.rooms      to authenticated;
 
 -- Activer le temps réel
 alter publication supabase_realtime add table public.tasks;
@@ -90,3 +104,4 @@ alter publication supabase_realtime add table public.members;
 alter publication supabase_realtime add table public.meals;
 alter publication supabase_realtime add table public.groceries;
 alter publication supabase_realtime add table public.reminders;
+alter publication supabase_realtime add table public.rooms;
