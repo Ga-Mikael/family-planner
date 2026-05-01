@@ -1247,7 +1247,7 @@ function ScheduleView({members,tasks,updateMember}:VP) {
 /* ═══════════════════════════════════════════════════════
    FOYER VIEW (membres + pièces + cuisine + déco)
 ═══════════════════════════════════════════════════════ */
-function FamilyView({members,tasks,rooms,groceries,meals,setMeals,reminders,addGrocery,toggleGroc,deleteGroc,updateMeals,addReminder,deleteRem,addTask,toggleTask,deleteTask,addMember,deleteMember,onSignOut,userEmail}:VP&{onSignOut:()=>void;userEmail:string}) {
+function FamilyView({members,tasks,rooms,groceries,meals,reminders,addGrocery,toggleGroc,deleteGroc,updateMeals,addReminder,deleteRem,addTask,toggleTask,deleteTask,addMember,deleteMember,onSignOut,userEmail}:VP&{onSignOut:()=>void;userEmail:string}) {
   const[section,setSection]=useState<"foyer"|"cuisine"|"rappels">("foyer");
   const[selRoom,setSelRoom]=useState<string|null>(null);
   const[showMemberForm,setShowMemberForm]=useState(false);
