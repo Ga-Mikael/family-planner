@@ -1,4 +1,4 @@
-# 🏠 Notre Foyer — Family Planner
+# 🏠 Notre Foyer — Family Planner fait par IA
 
 App de planning familial avec synchronisation en temps réel.
 
