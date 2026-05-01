@@ -204,36 +204,28 @@ const navBtn: CSSProperties={width:32,height:32,borderRadius:8,border:"1px solid
 /* ═══════════════════════════════════════════════════════
    FAMILY SETUP SCREEN — premier lancement, aucun nom dans le code
 ═══════════════════════════════════════════════════════ */
-const SETUP_COLORS = [
-  {color:"#EC4899",avatarBg:"#FCE7F3"},
-  {color:"#3B82F6",avatarBg:"#DBEAFE"},
-  {color:"#10B981",avatarBg:"#D1FAE5"},
-  {color:"#A78BFA",avatarBg:"#EDE9FE"},
-  {color:"#F59E0B",avatarBg:"#FEF3C7"},
-  {color:"#EF4444",avatarBg:"#FEF2F2"},
-];
 const PRESET_EMOJIS = ["👨","👩","👦","👧","👴","👵","🧑","👶"];
 
-interface SetupMember { name: string; emoji: string; isChild: boolean; }
+interface SetupMember { name: string; emoji: string; isChild: boolean; colorIdx: number; }
 
 function FamilySetupScreen({onFinish}:{onFinish:(m:Member[])=>Promise<void>}) {
   const [step,    setStep]    = useState<"welcome"|"members"|"done">("welcome");
   const [members, setMembers] = useState<SetupMember[]>([
-    {name:"", emoji:"👨", isChild:false},
-    {name:"", emoji:"👩", isChild:false},
+    {name:"", emoji:"👨", isChild:false, colorIdx:0},
+    {name:"", emoji:"👩", isChild:false, colorIdx:1},
   ]);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string|null>(null);
 
   const addMember = () => {
     if (members.length >= 6) return;
-    setMembers(p => [...p, {name:"", emoji:"🧑", isChild:false}]);
+    setMembers(p => [...p, {name:"", emoji:"🧑", isChild:false, colorIdx: p.length % MEMBER_COLORS.length}]);
   };
   const removeMember = (i: number) => {
     if (members.length <= 1) return;
     setMembers(p => p.filter((_,j) => j !== i));
   };
-  const update = (i: number, field: keyof SetupMember, val: string | boolean) => {
+  const update = (i: number, field: keyof SetupMember, val: string | boolean | number) => {
     setMembers(p => p.map((m, j) => j === i ? {...m, [field]: val} : m));
   };
 
@@ -246,8 +238,8 @@ function FamilySetupScreen({onFinish}:{onFinish:(m:Member[])=>Promise<void>}) {
       name:     m.name.trim(),
       emoji:    m.emoji,
       isChild:  m.isChild,
-      color:    SETUP_COLORS[i % SETUP_COLORS.length].color,
-      avatarBg: SETUP_COLORS[i % SETUP_COLORS.length].avatarBg,
+      color:    MEMBER_COLORS[m.colorIdx].color,
+      avatarBg: MEMBER_COLORS[m.colorIdx].avatarBg,
       workDays: [],
       workHours: {},
     }));
@@ -326,15 +318,21 @@ function FamilySetupScreen({onFinish}:{onFinish:(m:Member[])=>Promise<void>}) {
                     </button>
                   )}
                 </div>
+                {/* Color picker */}
+                <div style={{display:"flex",gap:7,marginBottom:8}}>
+                  {MEMBER_COLORS.map((c,ci) => (
+                    <div key={ci} onClick={() => update(i, "colorIdx", ci)} style={{width:22,height:22,borderRadius:"50%",background:c.color,cursor:"pointer",flexShrink:0,boxShadow:m.colorIdx===ci?`0 0 0 2px white, 0 0 0 4px ${c.color}`:"none",transition:"box-shadow .15s"}}/>
+                  ))}
+                </div>
                 {/* Child toggle */}
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   <div
                     onClick={() => update(i, "isChild", !m.isChild)}
-                    style={{width:36,height:20,borderRadius:10,background:m.isChild?SETUP_COLORS[i%SETUP_COLORS.length].color:"var(--border)",cursor:"pointer",position:"relative",transition:"background .2s",flexShrink:0}}
+                    style={{width:36,height:20,borderRadius:10,background:m.isChild?MEMBER_COLORS[m.colorIdx].color:"var(--border)",cursor:"pointer",position:"relative",transition:"background .2s",flexShrink:0}}
                   >
                     <div style={{position:"absolute",top:2,left:m.isChild?18:2,width:16,height:16,borderRadius:"50%",background:"white",transition:"left .2s",boxShadow:"0 1px 3px rgba(0,0,0,.2)"}}/>
                   </div>
-                  <span style={{fontSize:".78rem",fontWeight:600,color:m.isChild?SETUP_COLORS[i%SETUP_COLORS.length].color:"var(--muted)"}}>
+                  <span style={{fontSize:".78rem",fontWeight:600,color:m.isChild?MEMBER_COLORS[m.colorIdx].color:"var(--muted)"}}>
                     {m.isChild ? "Enfant 👧" : "Adulte 🧑"}
                   </span>
                 </div>
@@ -626,9 +624,9 @@ export default function App() {
     const idx=members.findIndex(x=>x.id===m.id);
     const {error}=await supabase.from("members").update(fromMember(m,uid(),idx)).eq("id",m.id); logErr("updateMember",error);
   };
-  const addMember=async(m:Pick<Member,"name"|"emoji">)=>{
-    const c=MEMBER_COLORS[members.length%MEMBER_COLORS.length];
-    const full:Member={id:"m"+Date.now(),...m,...c,workDays:[],workHours:{}};
+  const addMember=async(m:Pick<Member,"name"|"emoji"> & {color?:string;avatarBg?:string})=>{
+    const def=MEMBER_COLORS[members.length%MEMBER_COLORS.length];
+    const full:Member={id:"m"+Date.now(),...def,...m,workDays:[],workHours:{}};
     setMembers(p=>[...p,full]);
     const {error}=await supabase.from("members").insert(fromMember(full,uid(),members.length)); logErr("addMember",error);
   };
@@ -725,7 +723,7 @@ type VP={
   addTask:(t:Task)=>void;deleteTask:(id:string)=>void;toggleTask:(id:string)=>void;
   addGrocery:(g:Omit<Grocery,"id">)=>void;toggleGroc:(id:string)=>void;deleteGroc:(id:string)=>void;
   updateMeals:(m:Meals)=>void;addReminder:(r:Omit<Reminder,"id">)=>void;deleteRem:(id:string)=>void;
-  updateMember:(m:Member)=>void;addMember:(m:Pick<Member,"name"|"emoji">)=>void;deleteMember:(id:string)=>void;
+  updateMember:(m:Member)=>void;addMember:(m:Pick<Member,"name"|"emoji"> & {color?:string;avatarBg?:string})=>void;deleteMember:(id:string)=>void;
   weekendWarn:boolean;burst:()=>void;
 };
 
@@ -1187,7 +1185,7 @@ function ScheduleView({members,tasks,updateMember}:VP) {
         <button onClick={()=>setExpanded(isExp?null:m.id)} style={{width:"100%",background:"none",border:"none",cursor:"pointer",padding:"12px 14px",display:"flex",alignItems:"center",gap:10,textAlign:"left"}}>
           <div style={{width:34,height:34,borderRadius:"50%",background:m.avatarBg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1.1rem",border:`2px solid ${m.color}30`}}>{m.emoji}</div>
           <div style={{flex:1}}>
-            <div style={{fontWeight:700,fontSize:".9rem",color:m.color}}>{m.name}{m.isChild&&<span style={{fontSize:".7rem",fontWeight:500,color:"var(--muted)"}}> · 6 ans 🎒</span>}</div>
+            <div style={{fontWeight:700,fontSize:".9rem",color:m.color}}>{m.name}{m.isChild&&<span style={{fontSize:".7rem",fontWeight:500,color:"var(--muted)"}}> · Enfant 🎒</span>}</div>
             <div style={{fontSize:".65rem",color:"var(--muted)",marginTop:1}}>
               {m.workDays.length} jour{m.workDays.length!==1?"s":""} {m.isChild?"d'école":"travaillé"}
               {m.workDays.length>0&&" · "+m.workDays.map(d=>{const wh=m.workHours[d];return wh?`${DAYS_S2[d]} ${wh.start}–${wh.end}`:DAYS_S2[d];}).join(", ")}
@@ -1276,6 +1274,7 @@ function FamilyView({members,tasks,rooms,groceries,meals,reminders,addGrocery,to
   const[showMemberForm,setShowMemberForm]=useState(false);
   const[newName,setNewName]=useState(""),newEmoji=useState("")[0];
   const[nEmoji,setNEmoji]=useState("");
+  const[nColorIdx,setNColorIdx]=useState(0);
 
   // Room task form
   const[showRoomForm,setShowRoomForm]=useState(false);
@@ -1312,7 +1311,7 @@ function FamilyView({members,tasks,rooms,groceries,meals,reminders,addGrocery,to
       <div style={{padding:"16px 20px 12px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:"1px solid var(--border)"}}>
         <div>
           <h1 style={{fontWeight:800,fontSize:"1.3rem"}}>Notre Foyer</h1>
-          <div style={{fontSize:".65rem",color:"var(--muted)",marginTop:2}}>100 m² · 3 membres · 1 chien 🐕</div>
+          <div style={{fontSize:".65rem",color:"var(--muted)",marginTop:2}}>{members.length} membre{members.length!==1?"s":""}</div>
         </div>
         <button onClick={onSignOut} style={{...GB,padding:"6px 12px",fontSize:".72rem",gap:5}}>
           <Icon name="lock" size={13}/> Déconnexion
@@ -1350,7 +1349,7 @@ function FamilyView({members,tasks,rooms,groceries,meals,reminders,addGrocery,to
                     <div style={{width:36,height:36,borderRadius:"50%",background:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1.1rem",border:`2px solid ${m.color}30`}}>{m.emoji}</div>
                     <div style={{flex:1}}>
                       <div style={{fontWeight:700,fontSize:".9rem",color:m.color}}>{m.name}</div>
-                      <div style={{fontSize:".65rem",color:m.color,opacity:.7,marginTop:1}}>{m.isChild?"6 ans 🌟":m.workDays.length+" j/semaine travaillés"}</div>
+                      <div style={{fontSize:".65rem",color:m.color,opacity:.7,marginTop:1}}>{m.isChild?"Enfant 🌟":m.workDays.length+" j/semaine travaillés"}</div>
                     </div>
                     <div style={{fontSize:".8rem",fontWeight:700,color:m.color,opacity:.8}}>{md}/{mt.length}</div>
                     {members.length>1&&<button onClick={()=>deleteMember(m.id)} style={{background:"none",border:"none",cursor:"pointer",color:m.color,opacity:.4,padding:4,display:"flex"}}><Icon name="trash" size={13}/></button>}
@@ -1365,10 +1364,15 @@ function FamilyView({members,tasks,rooms,groceries,meals,reminders,addGrocery,to
               <div style={{background:"var(--soft)",border:"1px solid var(--border)",borderRadius:14,padding:14,marginTop:8,animation:"fadeUp .2s ease"}}>
                 <div style={{display:"flex",gap:8,marginBottom:10}}>
                   <input value={nEmoji} onChange={e=>setNEmoji(e.target.value)} placeholder="😊" style={{...IS,width:60,textAlign:"center",fontSize:"1.2rem",background:"white"}}/>
-                  <input value={newName} onChange={e=>setNewName(e.target.value)} placeholder="Prénom…" style={{...IS,flex:1,background:"white"}} onKeyDown={e=>{if(e.key==="Enter"&&newName.trim()){addMember({name:newName.trim(),emoji:nEmoji||"😊"});setNewName("");setNEmoji("");setShowMemberForm(false);}}}/>
+                  <input value={newName} onChange={e=>setNewName(e.target.value)} placeholder="Prénom…" style={{...IS,flex:1,background:"white"}} onKeyDown={e=>{if(e.key==="Enter"&&newName.trim()){addMember({name:newName.trim(),emoji:nEmoji||"😊",color:MEMBER_COLORS[nColorIdx].color,avatarBg:MEMBER_COLORS[nColorIdx].avatarBg});setNewName("");setNEmoji("");setNColorIdx(0);setShowMemberForm(false);}}}/>
+                </div>
+                <div style={{display:"flex",gap:7,marginBottom:10}}>
+                  {MEMBER_COLORS.map((c,ci)=>(
+                    <div key={ci} onClick={()=>setNColorIdx(ci)} style={{width:22,height:22,borderRadius:"50%",background:c.color,cursor:"pointer",flexShrink:0,boxShadow:nColorIdx===ci?`0 0 0 2px white, 0 0 0 4px ${c.color}`:"none",transition:"box-shadow .15s"}}/>
+                  ))}
                 </div>
                 <div style={{display:"flex",gap:6}}>
-                  <button onClick={()=>{if(newName.trim()){addMember({name:newName.trim(),emoji:nEmoji||"😊"});setNewName("");setNEmoji("");setShowMemberForm(false);}}} style={{...PB,flex:1,fontSize:".82rem"}}>Ajouter</button>
+                  <button onClick={()=>{if(newName.trim()){addMember({name:newName.trim(),emoji:nEmoji||"😊",color:MEMBER_COLORS[nColorIdx].color,avatarBg:MEMBER_COLORS[nColorIdx].avatarBg});setNewName("");setNEmoji("");setNColorIdx(0);setShowMemberForm(false);}}} style={{...PB,flex:1,fontSize:".82rem"}}>Ajouter</button>
                   <button onClick={()=>setShowMemberForm(false)} style={{...GB,fontSize:".82rem"}}>Annuler</button>
                 </div>
               </div>
