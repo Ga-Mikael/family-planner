@@ -24,6 +24,9 @@ dist-ssr
 *.sln
 *.sw?
 
+# Claude Code local config
+.claude/
+
 # Logs
 npm-debug.log*
 yarn-debug.log*

@@ -58,6 +58,7 @@ const fromRem    = (r: Omit<Reminder,"id">, uid: string) => ({id:"r"+Date.now(),
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const toRoom=(r:any):Room=>({id:r.id,name:r.name,icon:r.icon as IconName,color:r.color});
 const fromRoom=(r:Room,uid:string,order:number)=>({id:r.id,name:r.name,icon:r.icon,color:r.color,sort_order:order,user_id:uid});
+const parseMemberIds=(s:string):string[]=>(s?s.split(",").filter(Boolean):[]);
 
 function easterDate(year:number):Date{
   const a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4;
@@ -156,10 +157,13 @@ function isInWorkHours(m: Member, day: DayIndex, time: string): boolean {
 }
 function getWorkConflict(memberId:string,day:DayIndex,time:string,members:Member[]): string|null {
   if(!memberId||!time) return null;
-  const m=members.find(x=>x.id===memberId);
-  if(!m||!isInWorkHours(m,day,time)) return null;
-  const wh=m.workHours[day]!;
-  return `${m.name} ${m.isChild?"est à l'école":"travaille"} de ${wh.start} à ${wh.end} ce jour-là`;
+  for(const id of memberId.split(",").filter(Boolean)){
+    const m=members.find(x=>x.id===id);
+    if(!m||!isInWorkHours(m,day,time)) continue;
+    const wh=m.workHours[day]!;
+    return `${m.name} ${m.isChild?"est à l'école":"travaille"} de ${wh.start} à ${wh.end} ce jour-là`;
+  }
+  return null;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -630,6 +634,10 @@ export default function App() {
     setTasks(p=>p.filter(t=>t.id!==id));
     const {error}=await supabase.from("tasks").delete().eq("id",id); logErr("deleteTask",error);
   };
+  const updateTask=async(t:Task)=>{
+    setTasks(p=>p.map(x=>x.id===t.id?t:x));
+    const {error}=await supabase.from("tasks").update(fromTask(t,uid())).eq("id",t.id); logErr("updateTask",error);
+  };
   const toggleTask=async(id:string)=>{
     const task=tasks.find(t=>t.id===id); if(!task) return;
     const done=!task.done;
@@ -709,7 +717,7 @@ export default function App() {
   const weekendWarn=tasks.filter(t=>isWeekend(t.day)&&!t.done).length>=8;
 
   const p={members,tasks,rooms,groceries,meals,reminders,selDay,setSelDay,weekOff,setWeekOff,
-    addTask,deleteTask,toggleTask,addGrocery,toggleGroc,deleteGroc,updateMeals,addReminder,deleteRem,
+    addTask,deleteTask,toggleTask,updateTask,addGrocery,toggleGroc,deleteGroc,updateMeals,addReminder,deleteRem,
     updateMember,addMember,deleteMember,addRoom,deleteRoom,weekendWarn,burst};
 
   /* ── RENDER ── */
@@ -780,7 +788,7 @@ function BottomNav({tab,setTab,weekendWarn}:{tab:TabId;setTab:(t:TabId)=>void;we
 type VP={
   members:Member[];tasks:Task[];rooms:Room[];groceries:Grocery[];meals:Meals;reminders:Reminder[];
   selDay:DayIndex;setSelDay:(d:DayIndex)=>void;weekOff:number;setWeekOff:(n:number)=>void;
-  addTask:(t:Task)=>void;deleteTask:(id:string)=>void;toggleTask:(id:string)=>void;
+  addTask:(t:Task)=>void;deleteTask:(id:string)=>void;toggleTask:(id:string)=>void;updateTask:(t:Task)=>void;
   addGrocery:(g:Omit<Grocery,"id">)=>void;toggleGroc:(id:string)=>void;deleteGroc:(id:string)=>void;
   updateMeals:(m:Meals)=>void;addReminder:(r:Omit<Reminder,"id">)=>void;deleteRem:(id:string)=>void;
   updateMember:(m:Member)=>void;addMember:(m:Pick<Member,"name"|"emoji"> & {color?:string;avatarBg?:string})=>void;deleteMember:(id:string)=>void;
@@ -789,9 +797,73 @@ type VP={
 };
 
 /* ═══════════════════════════════════════════════════════
+   MEMBER TOGGLE BAR
+═══════════════════════════════════════════════════════ */
+function MemberToggleBar({members,selected,onChange}:{members:Member[];selected:string[];onChange:(ids:string[])=>void}) {
+  const toggle=(id:string)=>onChange(selected.includes(id)?selected.filter(x=>x!==id):[...selected,id]);
+  return (
+    <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:8}}>
+      <button onClick={()=>onChange([])} style={{padding:"5px 8px",borderRadius:99,border:`1.5px solid ${selected.length===0?"var(--text)":"var(--border)"}`,background:selected.length===0?"var(--soft)":"white",cursor:"pointer",fontSize:".72rem",fontWeight:selected.length===0?700:500,color:selected.length===0?"var(--text)":"var(--muted)"}}>👨‍👩‍👧 Famille</button>
+      {members.map(m=>{const sel=selected.includes(m.id);return(<button key={m.id} onClick={()=>toggle(m.id)} style={{display:"flex",alignItems:"center",gap:4,padding:"5px 8px",borderRadius:99,border:`1.5px solid ${sel?m.color:"var(--border)"}`,background:sel?m.avatarBg:"white",cursor:"pointer",fontSize:".72rem",fontWeight:sel?700:500,color:sel?m.color:"var(--muted)"}}><span>{m.emoji}</span><span style={{fontSize:".68rem"}}>{m.name}</span></button>);})}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   EDIT TASK MODAL
+═══════════════════════════════════════════════════════ */
+function EditTaskModal({task,members,rooms,onSave,onClose}:{task:Task;members:Member[];rooms:Room[];onSave:(t:Task)=>void;onClose:()=>void}) {
+  const[name,setName]=useState(task.name);
+  const[memberIds,setMemberIds]=useState<string[]>(parseMemberIds(task.memberId));
+  const[roomId,setRoomId]=useState(task.roomId);
+  const[day,setDay]=useState<DayIndex>(task.day);
+  const[priority,setPriority]=useState<Priority>(task.priority);
+  const[recurrence,setRecurrence]=useState<Recurrence>(task.recurrence);
+  const[time,setTime]=useState(task.dueTime||"");
+  const[note,setNote]=useState(task.note||"");
+  const conflict=getWorkConflict(memberIds.join(","),day,time,members);
+  const save=()=>{
+    if(!name.trim()||conflict) return;
+    onSave({...task,name:name.trim(),memberId:memberIds.join(","),roomId,day,priority,recurrence,dueTime:time||undefined,note:note||undefined});
+    onClose();
+  };
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:1000,display:"flex",alignItems:"flex-end"}} onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div style={{width:"100%",background:"var(--bg)",borderRadius:"20px 20px 0 0",padding:"20px 16px 40px",maxHeight:"85vh",overflowY:"auto",animation:"fadeUp .25s ease"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+          <h2 style={{fontWeight:800,fontSize:"1rem"}}>Modifier la tâche</h2>
+          <button onClick={onClose} style={{width:30,height:30,borderRadius:8,border:"1px solid var(--border)",background:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><Icon name="x" size={14}/></button>
+        </div>
+        <input autoFocus value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&save()} placeholder="Nom de la tâche…" style={{...IS,marginBottom:8,fontWeight:600}}/>
+        <div style={{fontSize:".65rem",fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".4px",marginBottom:6}}>Membres</div>
+        <MemberToggleBar members={members} selected={memberIds} onChange={setMemberIds}/>
+        <WorkConflictAlert conflict={conflict}/>
+        <div style={{display:"flex",gap:8,marginBottom:8}}>
+          <select value={day} onChange={e=>setDay(parseInt(e.target.value) as DayIndex)} style={{...IS,flex:1}}>
+            {DAYS_F.map((d,i)=><option key={i} value={i}>{d}</option>)}
+          </select>
+          <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={{...IS,flex:1}}/>
+        </div>
+        <select value={roomId} onChange={e=>setRoomId(e.target.value)} style={{...IS,marginBottom:8}}>
+          {rooms.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}
+        </select>
+        <div style={{display:"flex",gap:5,marginBottom:8}}>
+          {(["low","med","high"] as Priority[]).map(p=>{const c=PRIORITY_CONFIG[p];return <button key={p} onClick={()=>setPriority(p)} style={{flex:1,padding:"7px 4px",border:`1.5px solid ${priority===p?c.color:"var(--border)"}`,borderRadius:8,background:priority===p?c.bg:"white",color:priority===p?c.color:"var(--muted)",fontSize:".7rem",fontWeight:700,cursor:"pointer"}}>{c.label}</button>;})}
+        </div>
+        <div style={{display:"flex",gap:5,marginBottom:8}}>
+          {(["once","daily","weekly","monthly"] as Recurrence[]).map(rec=>{const a=recurrence===rec;return <button key={rec} onClick={()=>setRecurrence(rec)} style={{flex:1,padding:"6px 4px",border:`1.5px solid ${a?"var(--text)":"var(--border)"}`,borderRadius:8,background:a?"var(--text)":"white",color:a?"white":"var(--muted)",fontSize:".65rem",fontWeight:700,cursor:"pointer"}}>{RECURRENCE_CONFIG[rec].short}</button>;})}
+        </div>
+        <input value={note} onChange={e=>setNote(e.target.value)} placeholder="Note optionnelle…" style={{...IS,marginBottom:12,fontSize:".8rem"}}/>
+        <button onClick={save} disabled={!!conflict} style={{...PB,width:"100%",opacity:conflict?.6:1,cursor:conflict?"not-allowed":"pointer"}}>{conflict?"⚠️ Conflit":"Enregistrer ✓"}</button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
    HOME VIEW
 ═══════════════════════════════════════════════════════ */
-function HomeView({members,tasks,meals,reminders,selDay,setSelDay,weekOff,setWeekOff,toggleTask,deleteTask,addTask,weekendWarn}:VP) {
+function HomeView({members,tasks,meals,reminders,selDay,setSelDay,weekOff,setWeekOff,toggleTask,deleteTask,addTask,updateTask,weekendWarn,rooms}:VP) {
   const today=todayIdx();
   const start=new Date(); start.setDate(start.getDate()-today+weekOff*7);
   const dates=DAYS_S.map((_,i)=>{const d=new Date(start);d.setDate(start.getDate()+i);return d.getDate();});
@@ -799,18 +871,19 @@ function HomeView({members,tasks,meals,reminders,selDay,setSelDay,weekOff,setWee
   const baseMonday=(()=>{const d=new Date();d.setDate(d.getDate()-todayIdx()+weekOff*7);d.setHours(0,0,0,0);return d;})();
   const getWeekDate=(i:number)=>{const d=new Date(baseMonday);d.setDate(baseMonday.getDate()+i);return d;};
 
-  const[addFor,  setAddFor]  =useState<DayIndex|null>(null);
-  const[inName,  setInName]  =useState("");
-  const[inMember,setInMember]=useState("");
-  const[inRoom,  setInRoom]  =useState("r-general");
-  const[inPrio,  setInPrio]  =useState<Priority>("med");
-  const[inTime,  setInTime]  =useState("");
-  const conflict=getWorkConflict(inMember,addFor??0,inTime,members);
+  const[addFor,    setAddFor]   =useState<DayIndex|null>(null);
+  const[inName,    setInName]   =useState("");
+  const[inMembers, setInMembers]=useState<string[]>([]);
+  const[inRoom,    setInRoom]   =useState("r-general");
+  const[inPrio,    setInPrio]   =useState<Priority>("med");
+  const[inTime,    setInTime]   =useState("");
+  const[editingTask,setEditingTask]=useState<Task|null>(null);
+  const conflict=getWorkConflict(inMembers.join(","),addFor??0,inTime,members);
 
   const submitInline=(day:DayIndex)=>{
     if(!inName.trim()||conflict) return;
-    addTask({id:"t"+Date.now(),name:inName.trim(),memberId:inMember,roomId:inRoom,day,priority:inPrio,recurrence:"once",done:false,dueTime:inTime||undefined});
-    setInName("");setInMember("");setInRoom("r-general");setInPrio("med");setInTime("");setAddFor(null);
+    addTask({id:"t"+Date.now(),name:inName.trim(),memberId:inMembers.join(","),roomId:inRoom,day,priority:inPrio,recurrence:"once",done:false,dueTime:inTime||undefined});
+    setInName("");setInMembers([]);setInRoom("r-general");setInPrio("med");setInTime("");setAddFor(null);
   };
 
   const dayItems=(d:DayIndex)=>tasks.filter(t=>t.day===d);
@@ -889,18 +962,15 @@ function HomeView({members,tasks,meals,reminders,selDay,setSelDay,weekOff,setWee
               </div>
               {items.length===0
                 ? <div style={{padding:"4px 0 8px",color:"var(--muted2)",fontSize:".78rem",fontStyle:"italic"}}>Journée libre 😌</div>
-                : items.map(t=><HomeTaskCard key={t.id} task={t} members={members} rooms={DEFAULT_ROOMS} onToggle={toggleTask} onDelete={deleteTask}/>)
+                : items.map(t=><HomeTaskCard key={t.id} task={t} members={members} rooms={DEFAULT_ROOMS} onToggle={toggleTask} onDelete={deleteTask} onEdit={setEditingTask}/>)
               }
               {isSel&&(
                 addFor===dayIdx?(
                   <div style={{background:"var(--soft)",border:"1.5px solid var(--border)",borderRadius:14,padding:14,marginTop:8,animation:"fadeUp .2s ease"}}>
                     <input autoFocus value={inName} onChange={e=>setInName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!conflict&&submitInline(dayIdx)} placeholder={`Tâche pour ${DAYS_F[dayIdx]}…`} style={{...IS,marginBottom:8,background:"white"}}/>
-                    <div style={{display:"flex",gap:8,marginBottom:8}}>
-                      <select value={inMember} onChange={e=>setInMember(e.target.value)} style={{...IS,flex:1,background:"white"}}>
-                        <option value="">👨‍👩‍👧 Famille</option>
-                        {members.map(m=><option key={m.id} value={m.id}>{m.emoji} {m.name}</option>)}
-                      </select>
-                      <input type="time" value={inTime} onChange={e=>setInTime(e.target.value)} style={{...IS,flex:1,background:"white"}}/>
+                    <MemberToggleBar members={members} selected={inMembers} onChange={setInMembers}/>
+                    <div style={{marginBottom:8}}>
+                      <input type="time" value={inTime} onChange={e=>setInTime(e.target.value)} style={{...IS,background:"white"}}/>
                     </div>
                     <WorkConflictAlert conflict={conflict}/>
                     <select value={inRoom} onChange={e=>setInRoom(e.target.value)} style={{...IS,marginBottom:8,background:"white"}}>
@@ -937,6 +1007,7 @@ function HomeView({members,tasks,meals,reminders,selDay,setSelDay,weekOff,setWee
           {weekendWarn&&<div style={{fontSize:".7rem",color:"var(--warn)",marginTop:6,fontWeight:600}}>💡 Déplacez certaines tâches en semaine</div>}
         </div>
       </div>
+      {editingTask&&<EditTaskModal task={editingTask} members={members} rooms={rooms} onSave={updateTask} onClose={()=>setEditingTask(null)}/>}
     </div>
   );
 }
@@ -944,8 +1015,9 @@ function HomeView({members,tasks,meals,reminders,selDay,setSelDay,weekOff,setWee
 /* ═══════════════════════════════════════════════════════
    HOME TASK CARD
 ═══════════════════════════════════════════════════════ */
-function HomeTaskCard({task,members,rooms,onToggle,onDelete}:{task:Task;members:Member[];rooms:Room[];onToggle:(id:string)=>void;onDelete:(id:string)=>void}) {
-  const m=members.find(x=>x.id===task.memberId),r=rooms.find(x=>x.id===task.roomId);
+function HomeTaskCard({task,members,rooms,onToggle,onDelete,onEdit}:{task:Task;members:Member[];rooms:Room[];onToggle:(id:string)=>void;onDelete:(id:string)=>void;onEdit:(t:Task)=>void}) {
+  const mIds=parseMemberIds(task.memberId),ms=mIds.map(id=>members.find(x=>x.id===id)).filter(Boolean) as Member[];
+  const m=ms[0],r=rooms.find(x=>x.id===task.roomId);
   const col=m?.color||r?.color||"#6B7280",bg=m?.avatarBg||PASTEL[2].bg;
   const rc=RECURRENCE_CONFIG[task.recurrence];
   return (
@@ -965,8 +1037,11 @@ function HomeTaskCard({task,members,rooms,onToggle,onDelete}:{task:Task;members:
             {task.recurrence!=="once"&&<span style={{fontSize:".6rem",fontWeight:700,color:col,opacity:.6}}>{rc.short}</span>}
           </div>
         </div>
-        {m&&<div style={{width:28,height:28,borderRadius:"50%",background:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1rem",border:`2px solid ${col}25`,flexShrink:0}}>{m.emoji}</div>}
+        {ms.length>0&&<div style={{display:"flex",gap:2,flexShrink:0}}>{ms.map(mx=><div key={mx.id} style={{width:28,height:28,borderRadius:"50%",background:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1rem",border:`2px solid ${col}25`}}>{mx.emoji}</div>)}</div>}
         {task.priority==="high"&&!task.done&&<div style={{position:"absolute",top:6,right:8,width:6,height:6,borderRadius:"50%",background:"var(--danger)"}}/>}
+        <button onClick={e=>{e.stopPropagation();onEdit(task);}} style={{position:"absolute",bottom:5,right:30,background:"none",border:"none",cursor:"pointer",color:col,opacity:.35,padding:2,display:"flex"}}>
+          <Icon name="edit" size={12} sw={2}/>
+        </button>
         <button onClick={e=>{e.stopPropagation();onDelete(task.id);}} style={{position:"absolute",bottom:5,right:8,background:"none",border:"none",cursor:"pointer",color:col,opacity:.35,padding:2,display:"flex"}}>
           <Icon name="x" size={12} sw={2.5}/>
         </button>
@@ -978,10 +1053,10 @@ function HomeTaskCard({task,members,rooms,onToggle,onDelete}:{task:Task;members:
 /* ═══════════════════════════════════════════════════════
    TASKS VIEW
 ═══════════════════════════════════════════════════════ */
-function TasksView({members,tasks,addTask,toggleTask,deleteTask}:VP) {
+function TasksView({members,tasks,addTask,toggleTask,deleteTask,updateTask}:VP) {
   const[show,  setShow]  =useState(false);
   const[fname, setFname] =useState("");
-  const[fm,    setFm]    =useState("");
+  const[fms,   setFms]   =useState<string[]>([]);
   const[fr,    setFr]    =useState("r-general");
   const[fd,    setFd]    =useState<string>(String(todayIdx()));
   const[fp,    setFp]    =useState<Priority>("med");
@@ -990,12 +1065,13 @@ function TasksView({members,tasks,addTask,toggleTask,deleteTask}:VP) {
   const[fnote, setFnote] =useState("");
   const[filt,  setFilt]  =useState<"all"|"todo"|"done"|"high"|"weekend">("all");
   const[search,setSearch]=useState("");
-  const conflict=getWorkConflict(fm,parseInt(fd) as DayIndex,ftime,members);
+  const[editingTask,setEditingTask]=useState<Task|null>(null);
+  const conflict=getWorkConflict(fms.join(","),parseInt(fd) as DayIndex,ftime,members);
 
   const submit=()=>{
     if(!fname.trim()||conflict) return;
-    addTask({id:"t"+Date.now(),name:fname.trim(),memberId:fm,roomId:fr,day:parseInt(fd) as DayIndex,priority:fp,recurrence:frec,done:false,note:fnote||undefined,dueTime:ftime||undefined});
-    setFname("");setFm("");setFr("r-general");setFp("med");setFrec("once");setFtime("");setFnote("");setShow(false);
+    addTask({id:"t"+Date.now(),name:fname.trim(),memberId:fms.join(","),roomId:fr,day:parseInt(fd) as DayIndex,priority:fp,recurrence:frec,done:false,note:fnote||undefined,dueTime:ftime||undefined});
+    setFname("");setFms([]);setFr("r-general");setFp("med");setFrec("once");setFtime("");setFnote("");setShow(false);
   };
 
   const filtered=[...tasks]
@@ -1028,15 +1104,10 @@ function TasksView({members,tasks,addTask,toggleTask,deleteTask}:VP) {
         {show?(
           <div style={{background:"var(--soft)",border:"1px solid var(--border)",borderRadius:16,padding:16,marginBottom:14,animation:"fadeUp .2s ease"}}>
             <input value={fname} onChange={e=>setFname(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} placeholder="Nom de la tâche…" style={{...IS,marginBottom:8,background:"white"}}/>
-            <div style={{display:"flex",gap:8,marginBottom:8}}>
-              <select value={fm} onChange={e=>setFm(e.target.value)} style={{...IS,flex:1,background:"white"}}>
-                <option value="">👨‍👩‍👧 Famille</option>
-                {members.map(m=><option key={m.id} value={m.id}>{m.emoji} {m.name}</option>)}
-              </select>
-              <select value={fd} onChange={e=>setFd(e.target.value)} style={{...IS,flex:1,background:"white"}}>
-                {DAYS_F.map((d,i)=><option key={i} value={i}>{d}</option>)}
-              </select>
-            </div>
+            <MemberToggleBar members={members} selected={fms} onChange={setFms}/>
+            <select value={fd} onChange={e=>setFd(e.target.value)} style={{...IS,marginBottom:8,background:"white"}}>
+              {DAYS_F.map((d,i)=><option key={i} value={i}>{d}</option>)}
+            </select>
             <div style={{display:"flex",gap:8,marginBottom:8}}>
               <select value={fr} onChange={e=>setFr(e.target.value)} style={{...IS,flex:1,background:"white"}}>
                 {DEFAULT_ROOMS.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}
@@ -1075,9 +1146,10 @@ function TasksView({members,tasks,addTask,toggleTask,deleteTask}:VP) {
 
         {filtered.length===0
           ?<Empty iconName="checkCircle" text="Aucune tâche ici !"/>
-          :<div style={{display:"flex",flexDirection:"column",gap:8}}>{filtered.map(t=><FullTaskCard key={t.id} task={t} members={members} rooms={DEFAULT_ROOMS} onToggle={toggleTask} onDelete={deleteTask}/>)}</div>
+          :<div style={{display:"flex",flexDirection:"column",gap:8}}>{filtered.map(t=><FullTaskCard key={t.id} task={t} members={members} rooms={DEFAULT_ROOMS} onToggle={toggleTask} onDelete={deleteTask} onEdit={setEditingTask}/>)}</div>
         }
       </div>
+      {editingTask&&<EditTaskModal task={editingTask} members={members} rooms={DEFAULT_ROOMS} onSave={updateTask} onClose={()=>setEditingTask(null)}/>}
     </div>
   );
 }
@@ -1085,8 +1157,9 @@ function TasksView({members,tasks,addTask,toggleTask,deleteTask}:VP) {
 /* ═══════════════════════════════════════════════════════
    FULL TASK CARD
 ═══════════════════════════════════════════════════════ */
-function FullTaskCard({task,members,rooms,onToggle,onDelete}:{task:Task;members:Member[];rooms:Room[];onToggle:(id:string)=>void;onDelete:(id:string)=>void}) {
-  const m=members.find(x=>x.id===task.memberId),r=rooms.find(x=>x.id===task.roomId);
+function FullTaskCard({task,members,rooms,onToggle,onDelete,onEdit}:{task:Task;members:Member[];rooms:Room[];onToggle:(id:string)=>void;onDelete:(id:string)=>void;onEdit:(t:Task)=>void}) {
+  const mIds=parseMemberIds(task.memberId),ms=mIds.map(id=>members.find(x=>x.id===id)).filter(Boolean) as Member[];
+  const m=ms[0],r=rooms.find(x=>x.id===task.roomId);
   const pc=PRIORITY_CONFIG[task.priority],rc=RECURRENCE_CONFIG[task.recurrence];
   const col=m?.color||r?.color||"#6B7280",bg=m?.avatarBg||"#F3F4F6";
   return (
@@ -1106,7 +1179,8 @@ function FullTaskCard({task,members,rooms,onToggle,onDelete}:{task:Task;members:
           </div>
           {task.note&&<div style={{fontSize:".7rem",color:"var(--muted)",marginTop:3,fontStyle:"italic"}}>{task.note}</div>}
         </div>
-        {m&&<div style={{width:28,height:28,borderRadius:"50%",background:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:".95rem",flexShrink:0}}>{m.emoji}</div>}
+        {ms.length>0&&<div style={{display:"flex",gap:2,flexShrink:0}}>{ms.map(mx=><div key={mx.id} style={{width:28,height:28,borderRadius:"50%",background:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:".95rem"}}>{mx.emoji}</div>)}</div>}
+        <button onClick={()=>onEdit(task)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--muted2)",padding:4,display:"flex"}}><Icon name="edit" size={13} sw={1.8}/></button>
         <button onClick={()=>onDelete(task.id)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--muted2)",padding:4,display:"flex"}}><Icon name="trash" size={13} sw={1.8}/></button>
       </div>
     </div>
@@ -1116,14 +1190,16 @@ function FullTaskCard({task,members,rooms,onToggle,onDelete}:{task:Task;members:
 /* ═══════════════════════════════════════════════════════
    AGENDA VIEW (calendrier mensuel)
 ═══════════════════════════════════════════════════════ */
-function AgendaView({tasks,members,rooms,addTask}:VP) {
+function AgendaView({tasks,members,rooms,addTask,updateTask}:VP) {
   const today=new Date();
   const[viewDate,setViewDate]=useState(new Date(today.getFullYear(),today.getMonth(),1));
   const[detailDay,setDetailDay]=useState<number|null>(null);
   const[showAddForm,setShowAddForm]=useState(false);
   const[aName,setAName]=useState("");
-  const[aMember,setAMember]=useState("");
+  const[aMembers,setAMembers]=useState<string[]>([]);
   const[aPrio,setAPrio]=useState<Priority>("med");
+  const[aTime,setATime]=useState("");
+  const[editingTask,setEditingTask]=useState<Task|null>(null);
 
   const year=viewDate.getFullYear(),month=viewDate.getMonth();
   const daysInMonth=new Date(year,month+1,0).getDate();
@@ -1164,7 +1240,7 @@ function AgendaView({tasks,members,rooms,addTask}:VP) {
             const isToday=isCurrentMonth&&dom===today.getDate(),isSel=detailDay===dom,isWe=dow>=5;
             const dtl=tasksByDom(dom);
             const doneAll=dtl.length>0&&dtl.every(t=>t.done),hasHigh=dtl.some(t=>t.priority==="high"&&!t.done);
-            const dotColors=[...new Set(dtl.map(t=>members.find(m=>m.id===t.memberId)?.color).filter(Boolean))].slice(0,3) as string[];
+            const dotColors=[...new Set(dtl.flatMap(t=>parseMemberIds(t.memberId).map(id=>members.find(m=>m.id===id)?.color).filter(Boolean) as string[]))].slice(0,3) as string[];
             const holiday=getFrenchHolidays(year).get(dateKey(date));
             const vac=getVacation(date);
             return (
@@ -1188,7 +1264,7 @@ function AgendaView({tasks,members,rooms,addTask}:VP) {
                 <div style={{fontSize:".68rem",color:"var(--muted)",marginTop:1}}>{selTasks.filter(t=>t.done).length}/{selTasks.length} tâches</div>
               </div>
               <div style={{display:"flex",gap:6}}>
-                <button onClick={()=>{setShowAddForm(f=>!f);setAName("");setAMember("");setAPrio("med");}} style={{width:28,height:28,borderRadius:8,border:"1px solid var(--border)",background:showAddForm?"var(--text)":"white",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:showAddForm?"white":"var(--muted)"}}><Icon name="plus" size={14} sw={2.5}/></button>
+                <button onClick={()=>{setShowAddForm(f=>!f);setAName("");setAMembers([]);setAPrio("med");setATime("");}} style={{width:28,height:28,borderRadius:8,border:"1px solid var(--border)",background:showAddForm?"var(--text)":"white",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:showAddForm?"white":"var(--muted)"}}><Icon name="plus" size={14} sw={2.5}/></button>
                 <button onClick={()=>{setDetailDay(null);setShowAddForm(false);}} style={{width:28,height:28,borderRadius:8,border:"1px solid var(--border)",background:"white",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"var(--muted)"}}><Icon name="x" size={13}/></button>
               </div>
             </div>
@@ -1204,24 +1280,23 @@ function AgendaView({tasks,members,rooms,addTask}:VP) {
             })()}
             {showAddForm&&(
               <div style={{background:"white",borderRadius:12,padding:"10px 12px",marginBottom:10,display:"flex",flexDirection:"column",gap:8,animation:"fadeUp .15s ease"}}>
-                <input autoFocus value={aName} onChange={e=>setAName(e.target.value)} placeholder="Nom de la tâche…" style={{...IS,background:"var(--soft)",fontSize:".82rem"}} onKeyDown={e=>{if(e.key==="Enter"&&aName.trim()){addTask({id:"t"+Date.now(),name:aName.trim(),memberId:aMember,roomId:"r-general",day:selDow!,priority:aPrio,recurrence:"once",done:false});setAName("");setShowAddForm(false);}}}/>
+                <input autoFocus value={aName} onChange={e=>setAName(e.target.value)} placeholder="Nom de la tâche…" style={{...IS,background:"var(--soft)",fontSize:".82rem"}} onKeyDown={e=>{if(e.key==="Enter"&&aName.trim()){addTask({id:"t"+Date.now(),name:aName.trim(),memberId:aMembers.join(","),roomId:"r-general",day:selDow!,priority:aPrio,recurrence:"once",done:false,dueTime:aTime||undefined});setAName("");setAMembers([]);setATime("");setShowAddForm(false);}}}/>
+                <MemberToggleBar members={members} selected={aMembers} onChange={setAMembers}/>
                 <div style={{display:"flex",gap:6}}>
-                  <select value={aMember} onChange={e=>setAMember(e.target.value)} style={{...IS,flex:1,fontSize:".78rem",background:"var(--soft)"}}>
-                    <option value="">Membre…</option>
-                    {members.map(m=><option key={m.id} value={m.id}>{m.emoji} {m.name}</option>)}
-                  </select>
+                  <input type="time" value={aTime} onChange={e=>setATime(e.target.value)} style={{...IS,flex:1,fontSize:".78rem",background:"var(--soft)"}}/>
                   <select value={aPrio} onChange={e=>setAPrio(e.target.value as Priority)} style={{...IS,width:100,fontSize:".78rem",background:"var(--soft)"}}>
                     {(Object.entries(PRIORITY_CONFIG) as [Priority,{label:string;color:string;bg:string}][]).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
                   </select>
                 </div>
-                <button onClick={()=>{if(!aName.trim())return;addTask({id:"t"+Date.now(),name:aName.trim(),memberId:aMember,roomId:"r-general",day:selDow!,priority:aPrio,recurrence:"once",done:false});setAName("");setShowAddForm(false);}} style={{...PB,fontSize:".82rem",padding:"9px"}}>Ajouter la tâche</button>
+                <button onClick={()=>{if(!aName.trim())return;addTask({id:"t"+Date.now(),name:aName.trim(),memberId:aMembers.join(","),roomId:"r-general",day:selDow!,priority:aPrio,recurrence:"once",done:false,dueTime:aTime||undefined});setAName("");setAMembers([]);setATime("");setShowAddForm(false);}} style={{...PB,fontSize:".82rem",padding:"9px"}}>Ajouter la tâche</button>
               </div>
             )}
             {selTasks.length===0&&!showAddForm?<div style={{textAlign:"center",padding:"16px 0",color:"var(--muted2)",fontSize:".8rem",fontStyle:"italic"}}>Aucune tâche ce jour 😌</div>:(
               <div style={{display:"flex",flexDirection:"column",gap:6}}>
                 {selTasks.map(t=>{
-                  const m=members.find(x=>x.id===t.memberId),r=rooms.find(x=>x.id===t.roomId);
-                  const col=m?.color||r?.color||"#6B7280",pc=PRIORITY_CONFIG[t.priority];
+                  const tMids=parseMemberIds(t.memberId),tMs=tMids.map(id=>members.find(x=>x.id===id)).filter(Boolean) as Member[];
+                  const tM=tMs[0],r=rooms.find(x=>x.id===t.roomId);
+                  const col=tM?.color||r?.color||"#6B7280",pc=PRIORITY_CONFIG[t.priority];
                   return (
                     <div key={t.id} style={{background:"white",borderRadius:10,padding:"9px 12px",display:"flex",alignItems:"center",gap:9,borderLeft:`3px solid ${col}`}}>
                       <div style={{width:18,height:18,borderRadius:"50%",border:`2px solid ${t.done?col:col+"60"}`,background:t.done?col:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
@@ -1235,7 +1310,8 @@ function AgendaView({tasks,members,rooms,addTask}:VP) {
                           {t.dueTime&&<span style={{fontSize:".58rem",color:"var(--muted2)"}}>{t.dueTime}</span>}
                         </div>
                       </div>
-                      {m&&<div style={{fontSize:"1rem",flexShrink:0}}>{m.emoji}</div>}
+                      {tMs.length>0&&<div style={{display:"flex",gap:2,flexShrink:0}}>{tMs.map(mx=><span key={mx.id} style={{fontSize:".95rem"}}>{mx.emoji}</span>)}</div>}
+                      <button onClick={()=>setEditingTask(t)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--muted2)",padding:3,display:"flex",flexShrink:0}}><Icon name="edit" size={12} sw={1.8}/></button>
                     </div>
                   );
                 })}
@@ -1253,6 +1329,7 @@ function AgendaView({tasks,members,rooms,addTask}:VP) {
           ))}
         </div>
       </div>
+      {editingTask&&<EditTaskModal task={editingTask} members={members} rooms={rooms} onSave={updateTask!} onClose={()=>setEditingTask(null)}/>}
     </div>
   );
 }
@@ -1370,7 +1447,7 @@ function ScheduleView({members,tasks,updateMember}:VP) {
 /* ═══════════════════════════════════════════════════════
    FOYER VIEW (membres + pièces + cuisine + déco)
 ═══════════════════════════════════════════════════════ */
-function FamilyView({members,tasks,rooms,groceries,meals,reminders,addGrocery,toggleGroc,deleteGroc,updateMeals,addReminder,deleteRem,addTask,toggleTask,deleteTask,addMember,deleteMember,addRoom,deleteRoom,onSignOut,userEmail}:VP&{onSignOut:()=>void;userEmail:string}) {
+function FamilyView({members,tasks,rooms,groceries,meals,reminders,addGrocery,toggleGroc,deleteGroc,updateMeals,addReminder,deleteRem,addTask,toggleTask,deleteTask,updateTask,addMember,deleteMember,addRoom,deleteRoom,onSignOut,userEmail}:VP&{onSignOut:()=>void;userEmail:string}) {
   const[section,setSection]=useState<"foyer"|"cuisine"|"rappels">("foyer");
   const[selRoom,setSelRoom]=useState<string|null>(null);
   const[showMemberForm,setShowMemberForm]=useState(false);
@@ -1384,17 +1461,18 @@ function FamilyView({members,tasks,rooms,groceries,meals,reminders,addGrocery,to
 
   // Room task form
   const[showRoomForm,setShowRoomForm]=useState(false);
-  const[rfName,setRfName]=useState(""),rfMember=useState("")[0];
-  const[rfM,setRfM]=useState(""),rfDay=useState(String(todayIdx()))[0];
-  const[rfDay2,setRfDay2]=useState(String(todayIdx())),rfPrio=useState<Priority>("med")[0];
-  const[rfP,setRfP]=useState<Priority>("med"),rfRec=useState<Recurrence>("once")[0];
-  const[rfRec2,setRfRec2]=useState<Recurrence>("once"),rfTime=useState("")[0];
+  const[rfName,setRfName]=useState("");
+  const[rfMs,setRfMs]=useState<string[]>([]);
+  const[rfDay2,setRfDay2]=useState(String(todayIdx()));
+  const[rfP,setRfP]=useState<Priority>("med");
+  const[rfRec2,setRfRec2]=useState<Recurrence>("once");
   const[rfTime2,setRfTime2]=useState("");
-  const roomConflict=getWorkConflict(rfM,parseInt(rfDay2) as DayIndex,rfTime2,members);
+  const[editingTask,setEditingTask]=useState<Task|null>(null);
+  const roomConflict=getWorkConflict(rfMs.join(","),parseInt(rfDay2) as DayIndex,rfTime2,members);
   const submitRoomTask=()=>{
     if(!rfName.trim()||!selRoom||roomConflict) return;
-    addTask({id:"t"+Date.now(),name:rfName.trim(),memberId:rfM,roomId:selRoom,day:parseInt(rfDay2) as DayIndex,priority:rfP,recurrence:rfRec2,done:false,dueTime:rfTime2||undefined});
-    setRfName("");setRfM("");setRfDay2(String(todayIdx()));setRfP("med");setRfRec2("once");setRfTime2("");setShowRoomForm(false);
+    addTask({id:"t"+Date.now(),name:rfName.trim(),memberId:rfMs.join(","),roomId:selRoom,day:parseInt(rfDay2) as DayIndex,priority:rfP,recurrence:rfRec2,done:false,dueTime:rfTime2||undefined});
+    setRfName("");setRfMs([]);setRfDay2(String(todayIdx()));setRfP("med");setRfRec2("once");setRfTime2("");setShowRoomForm(false);
   };
 
   // Grocery
@@ -1558,19 +1636,14 @@ function FamilyView({members,tasks,rooms,groceries,meals,reminders,addGrocery,to
             </div>
             {roomTasks.length>0&&<div style={{height:4,background:"var(--soft)",borderRadius:99,overflow:"hidden",marginBottom:12}}><div style={{height:"100%",width:`${Math.round(roomTasks.filter(t=>t.done).length/roomTasks.length*100)}%`,background:room.color,transition:"width .5s"}}/></div>}
             {roomTasks.length===0&&!showRoomForm&&<div style={{textAlign:"center",padding:"16px 0 8px",color:"var(--muted2)",fontSize:".8rem",fontStyle:"italic"}}>Aucune tâche pour cette pièce 🧹</div>}
-            {roomTasks.map(t=><FullTaskCard key={t.id} task={t} members={members} rooms={rooms} onToggle={toggleTask} onDelete={deleteTask}/>)}
+            {roomTasks.map(t=><FullTaskCard key={t.id} task={t} members={members} rooms={rooms} onToggle={toggleTask} onDelete={deleteTask} onEdit={setEditingTask}/>)}
             {showRoomForm?(()=>{return(
               <div style={{background:"var(--soft)",border:"1.5px solid var(--border)",borderRadius:14,padding:14,marginTop:8,animation:"fadeUp .2s ease"}}>
                 <input autoFocus value={rfName} onChange={e=>setRfName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!roomConflict&&submitRoomTask()} placeholder={`Nouvelle tâche — ${room.name}…`} style={{...IS,marginBottom:8,background:"white"}}/>
-                <div style={{display:"flex",gap:8,marginBottom:8}}>
-                  <select value={rfM} onChange={e=>setRfM(e.target.value)} style={{...IS,flex:1,background:"white"}}>
-                    <option value="">👨‍👩‍👧 Famille</option>
-                    {members.map(m=><option key={m.id} value={m.id}>{m.emoji} {m.name}</option>)}
-                  </select>
-                  <select value={rfDay2} onChange={e=>setRfDay2(e.target.value)} style={{...IS,flex:1,background:"white"}}>
-                    {DAYS_F.map((d,i)=><option key={i} value={i}>{d}</option>)}
-                  </select>
-                </div>
+                <MemberToggleBar members={members} selected={rfMs} onChange={setRfMs}/>
+                <select value={rfDay2} onChange={e=>setRfDay2(e.target.value)} style={{...IS,marginBottom:8,background:"white"}}>
+                  {DAYS_F.map((d,i)=><option key={i} value={i}>{d}</option>)}
+                </select>
                 <div style={{display:"flex",gap:8,marginBottom:8}}>
                   <div style={{display:"flex",gap:5,flex:2}}>
                     {(["low","med","high"] as Priority[]).map(p=>{const c=PRIORITY_CONFIG[p];return <button key={p} onClick={()=>setRfP(p)} style={{flex:1,padding:"7px 4px",border:`1.5px solid ${rfP===p?c.color:"var(--border)"}`,borderRadius:8,background:rfP===p?c.bg:"white",color:rfP===p?c.color:"var(--muted)",fontSize:".68rem",fontWeight:700,cursor:"pointer"}}>{c.label}</button>;})}
@@ -1683,6 +1756,7 @@ function FamilyView({members,tasks,rooms,groceries,meals,reminders,addGrocery,to
           </>
         )}
       </div>
+      {editingTask&&<EditTaskModal task={editingTask} members={members} rooms={rooms} onSave={updateTask!} onClose={()=>setEditingTask(null)}/>}
     </div>
   );
 }
