@@ -39,6 +39,7 @@ export interface Task {
   done: boolean;
   note?: string;
   dueTime?: string;
+  dueDate?: string; // "YYYY-MM-DD" — date précise pour les tâches recurrence:"once"
 }
 
 export interface Grocery {
