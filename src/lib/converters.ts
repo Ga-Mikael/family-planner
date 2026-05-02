@@ -75,7 +75,9 @@ export const fromTask = (t: Task, uid: string) => ({
   done:       t.done,
   note:       t.note    ?? null,
   due_time:   t.dueTime ?? null,
-  due_date:   t.dueDate ?? null,
+  // due_date n'est inclus que si la valeur existe — évite l'erreur si la
+  // colonne n'a pas encore été créée dans Supabase
+  ...(t.dueDate ? { due_date: t.dueDate } : {}),
   user_id:    uid,
 });
 
