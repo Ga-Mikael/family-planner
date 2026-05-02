@@ -15,8 +15,9 @@ export const toTask = (r: any): Task => ({
   priority:   r.priority,
   recurrence: r.recurrence,
   done:       r.done,
-  note:       r.note    ?? undefined,
+  note:       r.note     ?? undefined,
   dueTime:    r.due_time ?? undefined,
+  dueDate:    r.due_date ?? undefined,
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -72,8 +73,9 @@ export const fromTask = (t: Task, uid: string) => ({
   priority:   t.priority,
   recurrence: t.recurrence,
   done:       t.done,
-  note:       t.note     ?? null,
-  due_time:   t.dueTime  ?? null,
+  note:       t.note    ?? null,
+  due_time:   t.dueTime ?? null,
+  due_date:   t.dueDate ?? null,
   user_id:    uid,
 });
 

@@ -5,7 +5,7 @@ import { MemberToggleBar } from "../components/ui/MemberToggleBar";
 import { WorkConflictAlert } from "../components/ui/WorkConflictAlert";
 import { HomeTaskCard } from "../components/tasks/HomeTaskCard";
 import { EditTaskModal } from "../components/tasks/EditTaskModal";
-import { todayIdx, isWeekend, getWorkConflict, getFrenchHolidays, getVacation, dateKey } from "../lib/utils";
+import { todayIdx, isWeekend, getWorkConflict, getFrenchHolidays, getVacation, dateKey, toDateStr } from "../lib/utils";
 import { DAYS_S, DAYS_F, MONTHS } from "../lib/constants";
 import { inputStyle, primaryBtn, ghostBtn, navBtn } from "../styles";
 
@@ -30,11 +30,26 @@ export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, se
 
   const submitInline = (day: DayIndex) => {
     if (!inName.trim() || conflict) return;
-    addTask({ id: "t" + Date.now(), name: inName.trim(), memberId: inMembers.join(","), roomId: inRoom, day, priority: inPrio, recurrence: "once", done: false, dueTime: inTime || undefined });
+    addTask({
+      id: "t" + Date.now(), name: inName.trim(), memberId: inMembers.join(","),
+      roomId: inRoom, day, priority: inPrio, recurrence: "once", done: false,
+      dueTime: inTime || undefined,
+      dueDate: toDateStr(getWeekDate(day)), // date précise de la semaine affichée
+    });
     setInName(""); setInMembers([]); setInRoom("r-general"); setInPrio("med"); setInTime(""); setAddFor(null);
   };
 
-  const dayItems = (d: DayIndex) => tasks.filter((t) => t.day === d);
+  // Pour les tâches "une fois" : filtre par date précise (semaine affichée)
+  // Pour les tâches récurrentes : filtre par jour de la semaine comme avant
+  const dayItems = (d: DayIndex) => {
+    const dateStr = toDateStr(getWeekDate(d));
+    return tasks.filter((t) => {
+      if (t.recurrence !== "once") return t.day === d;
+      if (t.dueDate) return t.dueDate === dateStr;
+      return t.day === d; // anciennes tâches sans dueDate
+    });
+  };
+
   const seen = new Set<DayIndex>();
   const agenda: DayIndex[] = [];
   const push = (d: DayIndex) => { if (!seen.has(d)) { seen.add(d); agenda.push(d); } };
@@ -42,7 +57,7 @@ export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, se
   if (selDay !== today && weekOff === 0) push(today);
   for (let i = 0; i < 7; i++) { const d = ((today + i) % 7) as DayIndex; if (dayItems(d).length) push(d); }
 
-  const weTasks = tasks.filter((t) => isWeekend(t.day));
+  const weTasks = [...dayItems(5), ...dayItems(6)];
   const weDone = weTasks.filter((t) => t.done).length;
 
   return (

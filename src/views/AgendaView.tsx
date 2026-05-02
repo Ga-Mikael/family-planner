@@ -3,11 +3,11 @@ import type { ViewProps, Task, DayIndex, Priority } from "../types";
 import { Icon } from "../components/ui/Icon";
 import { MemberToggleBar } from "../components/ui/MemberToggleBar";
 import { EditTaskModal } from "../components/tasks/EditTaskModal";
-import { parseMemberIds, getFrenchHolidays, getVacation, dateKey } from "../lib/utils";
+import { parseMemberIds, getFrenchHolidays, getVacation, dateKey, toDateStr } from "../lib/utils";
 import { DAYS_F, MONTHS, PRIORITY_CONFIG } from "../lib/constants";
 import { inputStyle, primaryBtn, navBtn } from "../styles";
 
-export function AgendaView({ tasks, members, rooms, addTask, updateTask }: ViewProps) {
+export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleTask }: ViewProps) {
   const today = new Date();
   const [viewDate,    setViewDate]    = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [detailDay,   setDetailDay]   = useState<number | null>(null);
@@ -26,14 +26,24 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask }: ViewP
   const tasksByDom = (dom: number) => {
     const date = new Date(year, month, dom);
     const dow = (date.getDay() === 0 ? 6 : date.getDay() - 1) as DayIndex;
-    return tasks.filter((t) => t.day === dow);
+    const dateStr = toDateStr(date);
+    return tasks.filter((t) => {
+      if (t.recurrence !== "once") return t.day === dow;
+      if (t.dueDate) return t.dueDate === dateStr;
+      return t.day === dow; // anciennes tâches sans dueDate
+    });
   };
   const selDow = detailDay ? ((new Date(year, month, detailDay).getDay() === 0 ? 6 : new Date(year, month, detailDay).getDay() - 1) as DayIndex) : null;
-  const selTasks = selDow !== null ? tasks.filter((t) => t.day === selDow) : [];
+  const selTasks = detailDay !== null && selDow !== null ? tasksByDom(detailDay) : [];
 
   const addTaskForDay = () => {
-    if (!aName.trim() || selDow === null) return;
-    addTask({ id: "t" + Date.now(), name: aName.trim(), memberId: aMembers.join(","), roomId: "r-general", day: selDow, priority: aPrio, recurrence: "once", done: false, dueTime: aTime || undefined });
+    if (!aName.trim() || selDow === null || detailDay === null) return;
+    addTask({
+      id: "t" + Date.now(), name: aName.trim(), memberId: aMembers.join(","),
+      roomId: "r-general", day: selDow, priority: aPrio, recurrence: "once",
+      done: false, dueTime: aTime || undefined,
+      dueDate: toDateStr(new Date(year, month, detailDay)), // date précise
+    });
     setAName(""); setAMembers([]); setATime(""); setShowAddForm(false);
   };
 
@@ -171,12 +181,15 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask }: ViewP
                     const tM = tMs[0], r = rooms.find((x) => x.id === t.roomId);
                     const col = tM?.color || r?.color || "#6B7280", pc = PRIORITY_CONFIG[t.priority];
                     return (
-                      <div key={t.id} style={{ background: "white", borderRadius: 10, padding: "9px 12px", display: "flex", alignItems: "center", gap: 9, borderLeft: `3px solid ${col}` }}>
-                        <div style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${t.done ? col : col + "60"}`, background: t.done ? col : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <div key={t.id} style={{ background: "white", borderRadius: 10, padding: "9px 12px", display: "flex", alignItems: "center", gap: 9, borderLeft: `3px solid ${col}`, opacity: t.done ? 0.55 : 1 }}>
+                        <div
+                          onClick={() => toggleTask(t.id)}
+                          style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${t.done ? col : col + "60"}`, background: t.done ? col : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", transition: "all .2s" }}
+                        >
                           {t.done && <Icon name="check" size={9} color="white" sw={3} />}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: ".8rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: t.done ? "line-through" : "none", color: col }}>{t.name}</div>
+                          <div style={{ fontWeight: 600, fontSize: ".8rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: t.done ? "line-through" : "none", color: col, opacity: t.done ? 0.6 : 1 }}>{t.name}</div>
                           <div style={{ display: "flex", gap: 5, alignItems: "center", marginTop: 1 }}>
                             <span style={{ fontSize: ".58rem", fontWeight: 700, padding: "1px 5px", borderRadius: 99, background: pc.bg, color: pc.color }}>{pc.label}</span>
                             {r && <span style={{ fontSize: ".58rem", color: "var(--muted2)" }}>{r.name}</span>}

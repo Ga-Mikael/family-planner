@@ -76,6 +76,10 @@ function easterDate(year: number): Date {
 export const dateKey = (d: Date): string =>
   `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 
+/** Formate une date en "YYYY-MM-DD" pour stockage en base */
+export const toDateStr = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
 /** Retourne une Map<dateKey, nomFérié> pour une année donnée */
 export function getFrenchHolidays(year: number): Map<string, string> {
   const h = new Map<string, string>();
