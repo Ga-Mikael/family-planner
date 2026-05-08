@@ -42,6 +42,7 @@ export const RECURRENCE_CONFIG: Record<Recurrence, { label: string; short: strin
   daily:   { label: "Chaque jour",    short: "Quotidien" },
   weekly:  { label: "Chaque semaine", short: "Hebdo"    },
   monthly: { label: "Chaque mois",    short: "Mensuel"  },
+  annual:  { label: "Chaque année",   short: "Annuel"   },
 };
 
 // ─── Pièces par défaut ─────────────────────────────────────────────────────
@@ -59,17 +60,19 @@ export const DEFAULT_ROOMS: Room[] = [
   { id: "r-general", name: "Général",         icon: "home",  color: "#64748B" },
 ];
 
-// ─── Vacances scolaires françaises ─────────────────────────────────────────
+// ─── Vacances scolaires françaises — Zone B ────────────────────────────────
+// Zone B : Bordeaux, Clermont-Ferrand, Grenoble, Lyon, Montpellier,
+//          Nancy-Metz, Nantes, Rennes, Toulouse
 export const VACANCES: Vacation[] = [
-  { name: "Toussaint", start: new Date(2024, 9,  19), end: new Date(2024, 10,  4), color: "#F59E0B" },
+  { name: "Toussaint", start: new Date(2024,  9, 19), end: new Date(2024, 10,  4), color: "#F59E0B" },
   { name: "Noël",      start: new Date(2024, 11, 21), end: new Date(2025,  0,  6), color: "#3B82F6" },
-  { name: "Hiver",     start: new Date(2025,  1, 22), end: new Date(2025,  2, 10), color: "#06B6D4" },
-  { name: "Printemps", start: new Date(2025,  3, 19), end: new Date(2025,  4,  5), color: "#10B981" },
+  { name: "Hiver",     start: new Date(2025,  1,  8), end: new Date(2025,  1, 24), color: "#06B6D4" },
+  { name: "Printemps", start: new Date(2025,  3,  5), end: new Date(2025,  3, 21), color: "#10B981" },
   { name: "Été",       start: new Date(2025,  6,  5), end: new Date(2025,  8,  1), color: "#EC4899" },
   { name: "Toussaint", start: new Date(2025,  9, 18), end: new Date(2025, 10,  3), color: "#F59E0B" },
   { name: "Noël",      start: new Date(2025, 11, 20), end: new Date(2026,  0,  5), color: "#3B82F6" },
-  { name: "Hiver",     start: new Date(2026,  1, 21), end: new Date(2026,  2,  9), color: "#06B6D4" },
-  { name: "Printemps", start: new Date(2026,  3, 18), end: new Date(2026,  4,  4), color: "#10B981" },
+  { name: "Hiver",     start: new Date(2026,  1,  7), end: new Date(2026,  1, 23), color: "#06B6D4" },
+  { name: "Printemps", start: new Date(2026,  3,  4), end: new Date(2026,  3, 20), color: "#10B981" },
   { name: "Été",       start: new Date(2026,  6,  4), end: new Date(2026,  8,  1), color: "#EC4899" },
 ];
 

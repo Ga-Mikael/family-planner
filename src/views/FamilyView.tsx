@@ -61,10 +61,24 @@ export function FamilyView({
   const [miVal, setMiVal] = useState("");
 
   // Rappels
-  const [rt,       setRt]       = useState("");
-  const [reTime,   setReTime]   = useState("");
-  const [reDayVal, setReDayVal] = useState(String(todayIdx()));
+  const [rt,         setRt]         = useState("");
+  const [reTime,     setReTime]     = useState("");
+  const [reDayVal,   setReDayVal]   = useState(String(todayIdx()));
   const [reEmojiVal, setReEmojiVal] = useState("🔔");
+  const [reDate,     setReDate]     = useState("");   // YYYY-MM-DD, optionnel
+
+  // Notifications push
+  const [notifPerm, setNotifPerm] = useState<NotificationPermission>(
+    typeof Notification !== "undefined" ? Notification.permission : "default"
+  );
+  const requestNotifPerm = async () => {
+    if (typeof Notification === "undefined") return;
+    const perm = await Notification.requestPermission();
+    setNotifPerm(perm);
+    if (perm === "granted") {
+      new Notification("Family Planner 🏠", { body: "Notifications activées !" });
+    }
+  };
 
   const room = selRoom ? rooms.find((r) => r.id === selRoom) : null;
   const roomTasks = selRoom ? tasks.filter((t) => t.roomId === selRoom) : [];
@@ -289,10 +303,10 @@ export function FamilyView({
                   <input type="time" value={rfTime} onChange={(e) => setRfTime(e.target.value)} style={{ ...inputStyle, flex: 1, background: "white" }} />
                 </div>
                 <WorkConflictAlert conflict={roomConflict} />
-                <div style={{ display: "flex", gap: 5, marginBottom: 10 }}>
-                  {(["once", "daily", "weekly", "monthly"] as Recurrence[]).map((rec) => {
+                <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 10 }}>
+                  {(["once", "daily", "weekly", "monthly", "annual"] as Recurrence[]).map((rec) => {
                     const a = rfRec === rec;
-                    return <button key={rec} onClick={() => setRfRec(rec)} style={{ flex: 1, padding: "6px 4px", border: `1.5px solid ${a ? "var(--text)" : "var(--border)"}`, borderRadius: 8, background: a ? "var(--text)" : "white", color: a ? "white" : "var(--muted)", fontSize: ".65rem", fontWeight: 700, cursor: "pointer" }}>{RECURRENCE_CONFIG[rec].short}</button>;
+                    return <button key={rec} onClick={() => setRfRec(rec)} style={{ flex: "1 1 0", minWidth: 54, padding: "6px 4px", border: `1.5px solid ${a ? "var(--text)" : "var(--border)"}`, borderRadius: 8, background: a ? "var(--text)" : "white", color: a ? "white" : "var(--muted)", fontSize: ".65rem", fontWeight: 700, cursor: "pointer" }}>{RECURRENCE_CONFIG[rec].short}</button>;
                   })}
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
@@ -373,19 +387,52 @@ export function FamilyView({
                 <input value={reEmojiVal} onChange={(e) => setReEmojiVal(e.target.value)} style={{ ...inputStyle, width: 60, textAlign: "center", fontSize: "1.2rem", background: "white" }} />
                 <input value={rt} onChange={(e) => setRt(e.target.value)} placeholder="Titre du rappel…" style={{ ...inputStyle, flex: 1, background: "white" }} onKeyDown={(e) => { if (e.key === "Enter" && rt.trim()) { addReminder({ title: rt.trim(), time: reTime, day: parseInt(reDayVal) as DayIndex, emoji: reEmojiVal || "🔔" }); setRt(""); setReTime(""); } }} />
               </div>
-              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
                 <select value={reDayVal} onChange={(e) => setReDayVal(e.target.value)} style={{ ...inputStyle, flex: 1, background: "white" }}>
                   {DAYS_F.map((d, i) => <option key={i} value={i}>{d}</option>)}
                 </select>
                 <input type="time" value={reTime} onChange={(e) => setReTime(e.target.value)} style={{ ...inputStyle, flex: 1, background: "white" }} />
               </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                <input
+                  type="date"
+                  value={reDate}
+                  onChange={(e) => setReDate(e.target.value)}
+                  style={{ ...inputStyle, flex: 1, background: "white", fontSize: ".78rem" }}
+                  placeholder="Date précise (optionnel)"
+                />
+                <span style={{ fontSize: ".68rem", color: "var(--muted2)", whiteSpace: "nowrap" }}>Date précise</span>
+              </div>
               <button
-                onClick={() => { if (rt.trim()) { addReminder({ title: rt.trim(), time: reTime, day: parseInt(reDayVal) as DayIndex, emoji: reEmojiVal || "🔔" }); setRt(""); setReTime(""); } }}
+                onClick={() => {
+                  if (rt.trim()) {
+                    addReminder({ title: rt.trim(), time: reTime, day: parseInt(reDayVal) as DayIndex, emoji: reEmojiVal || "🔔", date: reDate || undefined });
+                    setRt(""); setReTime(""); setReDate("");
+                  }
+                }}
                 style={{ ...primaryBtn, width: "100%" }}
               >
                 <Icon name="plus" size={16} sw={2.2} /> Ajouter le rappel
               </button>
             </div>
+            {/* Bouton notifications */}
+            <div style={{ background: notifPerm === "granted" ? "#D1FAE5" : "var(--soft)", border: `1px solid ${notifPerm === "granted" ? "#6EE7B7" : "var(--border)"}`, borderRadius: 12, padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: notifPerm === "granted" ? "#A7F3D0" : "#EDE9FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon name="bell" size={16} color={notifPerm === "granted" ? "#059669" : "#7C3AED"} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: ".82rem" }}>Notifications push</div>
+                <div style={{ fontSize: ".68rem", color: "var(--muted)", marginTop: 1 }}>
+                  {notifPerm === "granted" ? "✓ Activées" : notifPerm === "denied" ? "Bloquées par le navigateur" : "Désactivées"}
+                </div>
+              </div>
+              {notifPerm !== "granted" && notifPerm !== "denied" && (
+                <button onClick={requestNotifPerm} style={{ padding: "6px 12px", border: "none", borderRadius: 8, background: "#7C3AED", color: "white", fontSize: ".72rem", fontWeight: 700, cursor: "pointer" }}>
+                  Activer
+                </button>
+              )}
+            </div>
+
             {reminders.length === 0 ? <Empty iconName="bell" text="Aucun rappel configuré" /> :
               DAYS_F.map((d, i) => {
                 const dr = reminders.filter((r) => r.day === i as DayIndex);
@@ -398,7 +445,10 @@ export function FamilyView({
                         <span style={{ fontSize: "1.3rem" }}>{r.emoji}</span>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontWeight: 700, fontSize: ".875rem", color: "#4C3899" }}>{r.title}</div>
-                          {r.time && <div style={{ fontSize: ".7rem", color: "#7C5CD9" }}>{r.time}</div>}
+                          <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
+                            {r.time && <span style={{ fontSize: ".7rem", color: "#7C5CD9" }}>{r.time}</span>}
+                            {r.date && <span style={{ fontSize: ".7rem", color: "#7C5CD9", fontWeight: 600 }}>📅 {r.date}</span>}
+                          </div>
                         </div>
                         <button onClick={() => deleteRem(r.id)} style={{ background: "none", border: "none", color: "#7C5CD9", cursor: "pointer", padding: 5, display: "flex", opacity: 0.6 }}>
                           <Icon name="x" size={14} />

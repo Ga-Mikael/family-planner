@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ViewProps, Task, DayIndex, Priority } from "../types";
 import { Icon } from "../components/ui/Icon";
 import { MemberToggleBar } from "../components/ui/MemberToggleBar";
 import { WorkConflictAlert } from "../components/ui/WorkConflictAlert";
 import { HomeTaskCard } from "../components/tasks/HomeTaskCard";
 import { EditTaskModal } from "../components/tasks/EditTaskModal";
-import { todayIdx, isWeekend, getWorkConflict, getFrenchHolidays, getVacation, dateKey, toDateStr } from "../lib/utils";
+import { todayIdx, isWeekend, isTaskDoneOn, getWorkConflict, getFrenchHolidays, getVacation, dateKey, toDateStr } from "../lib/utils";
 import { DAYS_S, DAYS_F, MONTHS } from "../lib/constants";
 import { inputStyle, primaryBtn, ghostBtn, navBtn } from "../styles";
 
@@ -18,13 +18,30 @@ export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, se
   const baseMonday = (() => { const d = new Date(); d.setDate(d.getDate() - todayIdx() + weekOff * 7); d.setHours(0, 0, 0, 0); return d; })();
   const getWeekDate = (i: number) => { const d = new Date(baseMonday); d.setDate(baseMonday.getDate() + i); return d; };
 
-  const [addFor,     setAddFor]     = useState<DayIndex | null>(null);
-  const [inName,     setInName]     = useState("");
-  const [inMembers,  setInMembers]  = useState<string[]>([]);
-  const [inRoom,     setInRoom]     = useState("r-general");
-  const [inPrio,     setInPrio]     = useState<Priority>("med");
-  const [inTime,     setInTime]     = useState("");
+  const [addFor,      setAddFor]      = useState<DayIndex | null>(null);
+  const [inName,      setInName]      = useState("");
+  const [inMembers,   setInMembers]   = useState<string[]>([]);
+  const [inRoom,      setInRoom]      = useState("r-general");
+  const [inPrio,      setInPrio]      = useState<Priority>("med");
+  const [inTime,      setInTime]      = useState("");
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [counterPopup, setCounterPopup] = useState<{ day: DayIndex; items: Task[]; dateStr: string } | null>(null);
+
+  // ── Swipe pour changer de semaine ─────────────────────────────────────────
+  const swipeTouchStart = useRef<{ x: number; y: number } | null>(null);
+  const onSwipeTouchStart = (e: React.TouchEvent) => {
+    swipeTouchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  };
+  const onSwipeTouchEnd = (e: React.TouchEvent) => {
+    if (!swipeTouchStart.current) return;
+    const dx = e.changedTouches[0].clientX - swipeTouchStart.current.x;
+    const dy = e.changedTouches[0].clientY - swipeTouchStart.current.y;
+    swipeTouchStart.current = null;
+    // Ne déclencher que si horizontal > vertical (évite les conflits avec le scroll)
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+      setWeekOff(dx < 0 ? weekOff + 1 : weekOff - 1);
+    }
+  };
 
   const conflict = getWorkConflict(inMembers.join(","), addFor ?? 0, inTime, members);
 
@@ -34,20 +51,25 @@ export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, se
       id: "t" + Date.now(), name: inName.trim(), memberId: inMembers.join(","),
       roomId: inRoom, day, priority: inPrio, recurrence: "once", done: false,
       dueTime: inTime || undefined,
-      dueDate: toDateStr(getWeekDate(day)), // date précise de la semaine affichée
+      dueDate: toDateStr(getWeekDate(day)),
     });
     setInName(""); setInMembers([]); setInRoom("r-general"); setInPrio("med"); setInTime(""); setAddFor(null);
   };
 
-  // Pour les tâches "une fois" : filtre par date précise (semaine affichée)
-  // Pour les tâches récurrentes : filtre par jour de la semaine comme avant
+  // Filtre les tâches pour un jour donné (prend en compte la date précise pour les tâches "once")
   const dayItems = (d: DayIndex) => {
     const dateStr = toDateStr(getWeekDate(d));
     return tasks.filter((t) => {
       if (t.recurrence !== "once") return t.day === d;
       if (t.dueDate) return t.dueDate === dateStr;
-      return t.day === d; // anciennes tâches sans dueDate
+      return t.day === d;
     });
+  };
+
+  // Nombre de tâches "faites" pour un jour (prend en compte doneDates)
+  const doneCnt = (d: DayIndex) => {
+    const dateStr = toDateStr(getWeekDate(d));
+    return dayItems(d).filter((t) => isTaskDoneOn(t, dateStr)).length;
   };
 
   const seen = new Set<DayIndex>();
@@ -58,10 +80,19 @@ export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, se
   for (let i = 0; i < 7; i++) { const d = ((today + i) % 7) as DayIndex; if (dayItems(d).length) push(d); }
 
   const weTasks = [...dayItems(5), ...dayItems(6)];
-  const weDone = weTasks.filter((t) => t.done).length;
+  const weDate5 = toDateStr(getWeekDate(5));
+  const weDate6 = toDateStr(getWeekDate(6));
+  const weDone  = [
+    ...dayItems(5).filter((t) => isTaskDoneOn(t, weDate5)),
+    ...dayItems(6).filter((t) => isTaskDoneOn(t, weDate6)),
+  ].length;
 
   return (
-    <div style={{ animation: "fadeUp .35s ease" }}>
+    <div
+      style={{ animation: "fadeUp .35s ease" }}
+      onTouchStart={onSwipeTouchStart}
+      onTouchEnd={onSwipeTouchEnd}
+    >
       {/* Header */}
       <div style={{ padding: "16px 20px 8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -100,7 +131,7 @@ export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, se
         {DAYS_S.map((_, i) => {
           const d = i as DayIndex;
           const isTd = d === today && weekOff === 0, isSel = d === selDay, isWe = isWeekend(d);
-          const cnt = dayItems(d).length, doneCnt = dayItems(d).filter((t) => t.done).length;
+          const cnt = dayItems(d).length, dc = doneCnt(d);
           const wd = getWeekDate(i);
           const wdHol = getFrenchHolidays(wd.getFullYear()).get(dateKey(wd));
           const wdVac = getVacation(wd);
@@ -112,7 +143,7 @@ export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, se
               </div>
               {cnt > 0 && (
                 <div style={{ marginTop: 3, display: "flex", justifyContent: "center" }}>
-                  <div style={{ height: 3, borderRadius: 99, background: doneCnt === cnt ? "var(--green)" : "var(--accent)", width: Math.min(24, cnt * 6) + "%", minWidth: 6, opacity: isSel ? 0.9 : 0.5 }} />
+                  <div style={{ height: 3, borderRadius: 99, background: dc === cnt ? "var(--green)" : "var(--accent)", width: Math.min(24, cnt * 6) + "%", minWidth: 6, opacity: isSel ? 0.9 : 0.5 }} />
                 </div>
               )}
               {(wdHol || wdVac) && <div style={{ width: 4, height: 4, borderRadius: "50%", background: wdHol ? "#DC2626" : (wdVac?.color ?? "#888"), marginTop: 1, margin: "1px auto 0" }} />}
@@ -124,7 +155,9 @@ export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, se
       {/* Agenda */}
       <div style={{ padding: "0 16px" }}>
         {agenda.map((dayIdx) => {
-          const items = dayItems(dayIdx);
+          const items   = dayItems(dayIdx);
+          const dateStr = toDateStr(getWeekDate(dayIdx));
+          const doneItems = items.filter((t) => isTaskDoneOn(t, dateStr));
           const isToday = dayIdx === today && weekOff === 0, isSel = dayIdx === selDay;
           const lc = isToday ? "var(--accent)" : isWeekend(dayIdx) ? "var(--warn)" : "var(--muted2)";
           return (
@@ -134,13 +167,28 @@ export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, se
                   {isToday ? "AUJOURD'HUI · " : ""}{DAYS_F[dayIdx].toUpperCase()} {dates[dayIdx]}
                   {isWeekend(dayIdx) && <span style={{ marginLeft: 6 }}>🏡</span>}
                 </span>
-                <span style={{ fontSize: ".65rem", color: "var(--muted2)", fontWeight: 600 }}>{items.filter((t) => t.done).length}/{items.length} ✓</span>
+                {/* Compteur cliquable → popup */}
+                <span
+                  onClick={() => items.length > 0 && setCounterPopup({ day: dayIdx, items, dateStr })}
+                  style={{ fontSize: ".65rem", color: "var(--muted2)", fontWeight: 600, cursor: items.length > 0 ? "pointer" : "default", padding: "2px 6px", borderRadius: 99, background: items.length > 0 ? "var(--soft)" : "transparent" }}
+                >
+                  {doneItems.length}/{items.length} ✓
+                </span>
               </div>
 
               {items.length === 0
                 ? <div style={{ padding: "4px 0 8px", color: "var(--muted2)", fontSize: ".78rem", fontStyle: "italic" }}>Journée libre 😌</div>
                 : items.map((t) => (
-                  <HomeTaskCard key={t.id} task={t} members={members} rooms={rooms} onToggle={toggleTask} onDelete={deleteTask} onEdit={setEditingTask} />
+                  <HomeTaskCard
+                    key={t.id}
+                    task={t}
+                    members={members}
+                    rooms={rooms}
+                    dateStr={dateStr}
+                    onToggle={toggleTask}
+                    onDelete={deleteTask}
+                    onEdit={setEditingTask}
+                  />
                 ))
               }
 
@@ -206,6 +254,51 @@ export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, se
           {weekendWarn && <div style={{ fontSize: ".7rem", color: "var(--warn)", marginTop: 6, fontWeight: 600 }}>💡 Déplacez certaines tâches en semaine</div>}
         </div>
       </div>
+
+      {/* Popup compteur de tâches */}
+      {counterPopup && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", zIndex: 1000, display: "flex", alignItems: "flex-end" }}
+          onClick={() => setCounterPopup(null)}
+        >
+          <div
+            style={{ width: "100%", background: "var(--bg)", borderRadius: "20px 20px 0 0", padding: "20px 16px 40px", maxHeight: "70vh", overflowY: "auto", animation: "fadeUp .2s ease" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <h3 style={{ fontWeight: 800, fontSize: ".95rem" }}>
+                {DAYS_F[counterPopup.day]} — {counterPopup.items.filter((t) => isTaskDoneOn(t, counterPopup.dateStr)).length}/{counterPopup.items.length} faites
+              </h3>
+              <button onClick={() => setCounterPopup(null)} style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid var(--border)", background: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Icon name="x" size={13} />
+              </button>
+            </div>
+            {counterPopup.items.map((t) => {
+              const isDone = isTaskDoneOn(t, counterPopup.dateStr);
+              const m = members.find((x) => t.memberId.split(",").includes(x.id));
+              const col = m?.color || "#6B7280";
+              return (
+                <div
+                  key={t.id}
+                  onClick={() => {
+                    toggleTask(t.id, counterPopup.dateStr);
+                    // Mettre à jour le popup localement pour feedback immédiat
+                    setCounterPopup((p) => p ? { ...p } : null);
+                  }}
+                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--soft)", borderRadius: 12, marginBottom: 8, cursor: "pointer", opacity: isDone ? 0.5 : 1, borderLeft: `3px solid ${col}` }}
+                >
+                  <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${isDone ? col : col + "50"}`, background: isDone ? col : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    {isDone && <Icon name="check" size={10} color="white" sw={3} />}
+                  </div>
+                  <span style={{ flex: 1, fontWeight: 600, fontSize: ".85rem", textDecoration: isDone ? "line-through" : "none", color: col }}>{t.name}</span>
+                  {m && <span style={{ fontSize: "1rem" }}>{m.emoji}</span>}
+                  {t.dueTime && <span style={{ fontSize: ".7rem", color: "var(--muted2)" }}>{t.dueTime}</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {editingTask && (
         <EditTaskModal task={editingTask} members={members} rooms={rooms} onSave={updateTask} onClose={() => setEditingTask(null)} />

@@ -113,14 +113,14 @@ export function EditTaskModal({ task, members, rooms, onSave, onClose }: EditTas
           })}
         </div>
 
-        <div style={{ display: "flex", gap: 5, marginBottom: 8 }}>
-          {(["once", "daily", "weekly", "monthly"] as Recurrence[]).map((rec) => {
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 8 }}>
+          {(["once", "daily", "weekly", "monthly", "annual"] as Recurrence[]).map((rec) => {
             const active = recurrence === rec;
             return (
               <button
                 key={rec}
                 onClick={() => setRecurrence(rec)}
-                style={{ flex: 1, padding: "6px 4px", border: `1.5px solid ${active ? "var(--text)" : "var(--border)"}`, borderRadius: 8, background: active ? "var(--text)" : "white", color: active ? "white" : "var(--muted)", fontSize: ".65rem", fontWeight: 700, cursor: "pointer" }}
+                style={{ flex: "1 1 0", minWidth: 56, padding: "6px 4px", border: `1.5px solid ${active ? "var(--text)" : "var(--border)"}`, borderRadius: 8, background: active ? "var(--text)" : "white", color: active ? "white" : "var(--muted)", fontSize: ".65rem", fontWeight: 700, cursor: "pointer" }}
               >
                 {RECURRENCE_CONFIG[rec].short}
               </button>

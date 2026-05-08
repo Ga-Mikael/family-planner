@@ -3,7 +3,7 @@ import type { ViewProps, Task, DayIndex, Priority } from "../types";
 import { Icon } from "../components/ui/Icon";
 import { MemberToggleBar } from "../components/ui/MemberToggleBar";
 import { EditTaskModal } from "../components/tasks/EditTaskModal";
-import { parseMemberIds, getFrenchHolidays, getVacation, dateKey, toDateStr } from "../lib/utils";
+import { parseMemberIds, isTaskDoneOn, getFrenchHolidays, getVacation, dateKey, toDateStr } from "../lib/utils";
 import { DAYS_F, MONTHS, PRIORITY_CONFIG } from "../lib/constants";
 import { inputStyle, primaryBtn, navBtn } from "../styles";
 
@@ -33,8 +33,9 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
       return t.day === dow; // anciennes tâches sans dueDate
     });
   };
-  const selDow = detailDay ? ((new Date(year, month, detailDay).getDay() === 0 ? 6 : new Date(year, month, detailDay).getDay() - 1) as DayIndex) : null;
-  const selTasks = detailDay !== null && selDow !== null ? tasksByDom(detailDay) : [];
+  const selDow     = detailDay ? ((new Date(year, month, detailDay).getDay() === 0 ? 6 : new Date(year, month, detailDay).getDay() - 1) as DayIndex) : null;
+  const selTasks   = detailDay !== null && selDow !== null ? tasksByDom(detailDay) : [];
+  const selDateStr = detailDay !== null ? toDateStr(new Date(year, month, detailDay)) : "";
 
   const addTaskForDay = () => {
     if (!aName.trim() || selDow === null || detailDay === null) return;
@@ -83,8 +84,10 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
             const date = new Date(year, month, dom);
             const dow = (date.getDay() === 0 ? 6 : date.getDay() - 1) as DayIndex;
             const isToday = isCurrentMonth && dom === today.getDate(), isSel = detailDay === dom, isWe = dow >= 5;
-            const dtl = tasksByDom(dom);
-            const doneAll = dtl.length > 0 && dtl.every((t) => t.done), hasHigh = dtl.some((t) => t.priority === "high" && !t.done);
+            const dtl     = tasksByDom(dom);
+            const domStr  = toDateStr(new Date(year, month, dom));
+            const doneAll = dtl.length > 0 && dtl.every((t) => isTaskDoneOn(t, domStr));
+            const hasHigh = dtl.some((t) => t.priority === "high" && !isTaskDoneOn(t, domStr));
             const dotColors = [...new Set(dtl.flatMap((t) => parseMemberIds(t.memberId).map((id) => members.find((m) => m.id === id)?.color).filter(Boolean) as string[]))].slice(0, 3) as string[];
             const holiday = getFrenchHolidays(year).get(dateKey(date));
             const vac = getVacation(date);
@@ -116,7 +119,7 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <div>
                 <div style={{ fontWeight: 800, fontSize: ".95rem" }}>{DAYS_F[selDow]} {detailDay} {MONTHS[month]}</div>
-                <div style={{ fontSize: ".68rem", color: "var(--muted)", marginTop: 1 }}>{selTasks.filter((t) => t.done).length}/{selTasks.length} tâches</div>
+                <div style={{ fontSize: ".68rem", color: "var(--muted)", marginTop: 1 }}>{selTasks.filter((t) => isTaskDoneOn(t, selDateStr)).length}/{selTasks.length} tâches</div>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
                 <button
@@ -180,16 +183,17 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
                     const tMs = tMids.map((id) => members.find((x) => x.id === id)).filter(Boolean) as typeof members;
                     const tM = tMs[0], r = rooms.find((x) => x.id === t.roomId);
                     const col = tM?.color || r?.color || "#6B7280", pc = PRIORITY_CONFIG[t.priority];
+                    const taskDone = isTaskDoneOn(t, selDateStr);
                     return (
-                      <div key={t.id} style={{ background: "white", borderRadius: 10, padding: "9px 12px", display: "flex", alignItems: "center", gap: 9, borderLeft: `3px solid ${col}`, opacity: t.done ? 0.55 : 1 }}>
+                      <div key={t.id} style={{ background: "white", borderRadius: 10, padding: "9px 12px", display: "flex", alignItems: "center", gap: 9, borderLeft: `3px solid ${col}`, opacity: taskDone ? 0.55 : 1 }}>
                         <div
-                          onClick={() => toggleTask(t.id)}
-                          style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${t.done ? col : col + "60"}`, background: t.done ? col : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", transition: "all .2s" }}
+                          onClick={() => toggleTask(t.id, selDateStr)}
+                          style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${taskDone ? col : col + "60"}`, background: taskDone ? col : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", transition: "all .2s" }}
                         >
-                          {t.done && <Icon name="check" size={9} color="white" sw={3} />}
+                          {taskDone && <Icon name="check" size={9} color="white" sw={3} />}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: ".8rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: t.done ? "line-through" : "none", color: col, opacity: t.done ? 0.6 : 1 }}>{t.name}</div>
+                          <div style={{ fontWeight: 600, fontSize: ".8rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: taskDone ? "line-through" : "none", color: col, opacity: taskDone ? 0.6 : 1 }}>{t.name}</div>
                           <div style={{ display: "flex", gap: 5, alignItems: "center", marginTop: 1 }}>
                             <span style={{ fontSize: ".58rem", fontWeight: 700, padding: "1px 5px", borderRadius: 99, background: pc.bg, color: pc.color }}>{pc.label}</span>
                             {r && <span style={{ fontSize: ".58rem", color: "var(--muted2)" }}>{r.name}</span>}
@@ -217,8 +221,8 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 20 }}>
           {[
             { label: "Ce mois", val: tasks.length, color: "var(--accent)" },
-            { label: "Faites", val: tasks.filter((t) => t.done).length, color: "var(--green)" },
-            { label: "Urgentes", val: tasks.filter((t) => t.priority === "high" && !t.done).length, color: "var(--danger)" },
+            { label: "Faites",  val: tasks.filter((t) => t.recurrence === "once" ? t.done : (t.doneDates?.length ?? 0) > 0).length, color: "var(--green)" },
+            { label: "Urgentes", val: tasks.filter((t) => t.priority === "high" && !t.done && !(t.doneDates?.length)).length, color: "var(--danger)" },
           ].map(({ label, val, color }) => (
             <div key={label} style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 12, padding: "10px", textAlign: "center" }}>
               <div style={{ fontWeight: 800, fontSize: "1.4rem", color, lineHeight: 1 }}>{val}</div>

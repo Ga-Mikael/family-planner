@@ -15,9 +15,10 @@ export const toTask = (r: any): Task => ({
   priority:   r.priority,
   recurrence: r.recurrence,
   done:       r.done,
-  note:       r.note     ?? undefined,
-  dueTime:    r.due_time ?? undefined,
-  dueDate:    r.due_date ?? undefined,
+  note:       r.note       ?? undefined,
+  dueTime:    r.due_time   ?? undefined,
+  dueDate:    r.due_date   ?? undefined,
+  doneDates:  r.done_dates ? JSON.parse(r.done_dates) : undefined,
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -41,12 +42,13 @@ export const toGrocery = (r: any): Grocery => ({
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const toReminder = (r: any): { id: string; title: string; time: string; day: DayIndex; emoji: string } => ({
+export const toReminder = (r: any): Reminder => ({
   id:    r.id,
   title: r.title,
   time:  r.time,
   day:   r.day,
   emoji: r.emoji,
+  date:  r.date ?? undefined,
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -75,9 +77,10 @@ export const fromTask = (t: Task, uid: string) => ({
   done:       t.done,
   note:       t.note    ?? null,
   due_time:   t.dueTime ?? null,
-  // due_date n'est inclus que si la valeur existe — évite l'erreur si la
-  // colonne n'a pas encore été créée dans Supabase
-  ...(t.dueDate ? { due_date: t.dueDate } : {}),
+  // Colonnes optionnelles : incluses seulement si la valeur existe
+  // (évite les erreurs si la colonne n'est pas encore créée en base)
+  ...(t.dueDate                ? { due_date:   t.dueDate                    } : {}),
+  ...(t.doneDates?.length      ? { done_dates: JSON.stringify(t.doneDates)  } : {}),
   user_id:    uid,
 });
 
@@ -103,7 +106,7 @@ export const fromGrocery = (g: Omit<Grocery, "id">, uid: string) => ({
 });
 
 export const fromReminder = (
-  r: Omit<{ id: string; title: string; time: string; day: DayIndex; emoji: string }, "id">,
+  r: Omit<Reminder, "id">,
   uid: string,
 ) => ({
   id:      "r" + Date.now(),
@@ -111,6 +114,7 @@ export const fromReminder = (
   time:    r.time,
   day:     r.day,
   emoji:   r.emoji,
+  ...(r.date ? { date: r.date } : {}),
   user_id: uid,
 });
 
