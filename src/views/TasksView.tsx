@@ -137,12 +137,32 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
               </button>
             </div>
           )}
-          {notifPerm === "granted" && tasks.some((t) => t.dueTime) && (
-            <div style={{ background: "var(--green-bg)", border: "1px solid var(--green)", borderRadius: 12, padding: "8px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+          {notifPerm === "granted" && (
+            <div style={{ background: "var(--green-bg)", border: "1px solid var(--green)", borderRadius: 12, padding: "8px 12px", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
               <Icon name="bell" size={14} color="var(--green)" />
-              <span style={{ fontSize: ".72rem", color: "var(--text)", fontWeight: 600 }}>
-                Notifications actives — tâches avec heure notifient 5 min avant
+              <span style={{ flex: 1, fontSize: ".72rem", color: "var(--text)", fontWeight: 600 }}>
+                Notifications actives ({tasks.filter((t) => t.dueTime).length} tâche{tasks.filter((t) => t.dueTime).length !== 1 ? "s" : ""} avec heure)
               </span>
+              <button
+                onClick={async () => {
+                  const opts = { body: "Si tu vois ça, les notifs marchent ✓", icon: "/icons/icon-192.png", badge: "/icons/icon-192.png" };
+                  try {
+                    if ("serviceWorker" in navigator) {
+                      const reg = await navigator.serviceWorker.ready;
+                      if (reg) { reg.showNotification("Test notif 🔔", opts); return; }
+                    }
+                    new Notification("Test notif 🔔", opts);
+                  } catch (e) { alert("Notif failed: " + String(e)); }
+                }}
+                style={{ padding: "4px 10px", border: "1px solid var(--green)", borderRadius: 8, background: "transparent", color: "var(--green)", fontSize: ".68rem", fontWeight: 800, cursor: "pointer", flexShrink: 0 }}
+              >
+                Tester
+              </button>
+            </div>
+          )}
+          {notifPerm === "denied" && (
+            <div style={{ background: "var(--danger-bg)", border: "1px solid var(--danger)", borderRadius: 12, padding: "10px 14px", marginBottom: 12, fontSize: ".72rem", color: "var(--text)" }}>
+              Notifications bloquées. Réglages iPhone → Notre Foyer → autoriser.
             </div>
           )}
           {/* Recherche */}
