@@ -63,12 +63,12 @@ export function HomeTaskCard({ task, members, rooms, onToggle, onDelete, onEdit,
       {swipeOffset > 0 && (
         <div style={{
           position: "absolute", left: 44, right: 0, top: 0, bottom: 8,
-          borderRadius: 13, background: "#D1FAE5",
+          borderRadius: 13, background: "var(--green-bg)",
           display: "flex", alignItems: "center", paddingLeft: 14,
           opacity: Math.min(swipeOffset / 60, 1),
           pointerEvents: "none",
         }}>
-          <Icon name="check" size={18} color="#059669" sw={2.5} />
+          <Icon name="check" size={18} color="var(--green)" sw={2.5} />
         </div>
       )}
 
@@ -141,7 +141,7 @@ export function HomeTaskCard({ task, members, rooms, onToggle, onDelete, onEdit,
           <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
             {taskMembers.map((m) => (
               <div key={m.id} style={{
-                width: 28, height: 28, borderRadius: "50%", background: "white",
+                width: 28, height: 28, borderRadius: "50%", background: "var(--surface)",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: "1rem", border: `2px solid ${color}25`,
               }}>

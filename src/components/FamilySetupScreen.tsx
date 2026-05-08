@@ -125,7 +125,7 @@ export function FamilySetupScreen({ onFinish }: FamilySetupScreenProps) {
                   <select
                     value={m.emoji}
                     onChange={(e) => update(i, "emoji", e.target.value)}
-                    style={{ ...inputStyle, width: 60, textAlign: "center", fontSize: "1.3rem", padding: "6px", background: "white", appearance: "none", cursor: "pointer" }}
+                    style={{ ...inputStyle, width: 60, textAlign: "center", fontSize: "1.3rem", padding: "6px", background: "var(--surface)", appearance: "none", cursor: "pointer" }}
                   >
                     {PRESET_EMOJIS.map((e) => <option key={e} value={e}>{e}</option>)}
                   </select>
@@ -133,7 +133,7 @@ export function FamilySetupScreen({ onFinish }: FamilySetupScreenProps) {
                     value={m.name}
                     onChange={(e) => update(i, "name", e.target.value)}
                     placeholder="Prénom…"
-                    style={{ ...inputStyle, flex: 1, background: "white" }}
+                    style={{ ...inputStyle, flex: 1, background: "var(--surface)" }}
                     autoFocus={i === 0}
                   />
                   {members.length > 1 && (
@@ -196,7 +196,7 @@ export function FamilySetupScreen({ onFinish }: FamilySetupScreenProps) {
           )}
 
           {error && (
-            <div style={{ fontSize: ".78rem", color: "#DC2626", background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>
+            <div style={{ fontSize: ".78rem", color: "var(--danger)", background: "var(--danger-bg)", border: "1px solid var(--danger)", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>
               {error}
             </div>
           )}

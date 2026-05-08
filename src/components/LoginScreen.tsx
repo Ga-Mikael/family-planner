@@ -69,7 +69,7 @@ export function LoginScreen() {
               style={{
                 flex: 1, padding: "8px 0", border: "none",
                 borderRadius: 10,
-                background:  mode === m ? "white" : "transparent",
+                background:  mode === m ? "var(--surface)" : "transparent",
                 fontWeight:  700, fontSize: ".82rem", cursor: "pointer",
                 color:       mode === m ? "var(--text)" : "var(--muted)",
                 boxShadow:   mode === m ? "0 2px 8px rgba(0,0,0,.08)" : "none",
@@ -91,7 +91,7 @@ export function LoginScreen() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email du foyer"
-            style={{ ...inputStyle, paddingLeft: 38, background: "white" }}
+            style={{ ...inputStyle, paddingLeft: 38, background: "var(--surface)" }}
             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
           />
         </div>
@@ -106,7 +106,7 @@ export function LoginScreen() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Mot de passe"
-            style={{ ...inputStyle, paddingLeft: 38, paddingRight: 40, background: "white" }}
+            style={{ ...inputStyle, paddingLeft: 38, paddingRight: 40, background: "var(--surface)" }}
             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
           />
           <button
@@ -122,8 +122,8 @@ export function LoginScreen() {
         </div>
 
         {/* Messages d'erreur / succès */}
-        {error   && <div style={{ fontSize: ".78rem", color: "#DC2626", background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{error}</div>}
-        {success && <div style={{ fontSize: ".78rem", color: "#16A34A", background: "#DCFCE7", border: "1px solid #86EFAC", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{success}</div>}
+        {error   && <div style={{ fontSize: ".78rem", color: "var(--danger)", background: "var(--danger-bg)", border: "1px solid var(--danger)", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{error}</div>}
+        {success && <div style={{ fontSize: ".78rem", color: "var(--green)",  background: "var(--green-bg)",  border: "1px solid var(--green)",  borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>{success}</div>}
 
         {/* Bouton de connexion */}
         <button onClick={handleSubmit} disabled={loading} style={{ ...primaryBtn, width: "100%", marginTop: 8, opacity: loading ? .7 : 1 }}>

@@ -60,9 +60,9 @@ export function ScheduleView({ members, tasks, updateMember }: ViewProps) {
             {DAYS_F.map((dayName, i) => {
               const d = i as DayIndex, isWork = m.workDays.includes(d), isWe = isWeekend(d), wh = m.workHours[d];
               return (
-                <div key={i} style={{ background: "white", borderRadius: 10, padding: "10px 12px", border: `1.5px solid ${isWork ? m.color + "50" : "var(--border)"}` }}>
+                <div key={i} style={{ background: "var(--surface)", borderRadius: 10, padding: "10px 12px", border: `1.5px solid ${isWork ? m.color + "50" : "var(--border)"}` }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: isWork ? 10 : 0 }}>
-                    <div style={{ width: 36, fontWeight: 700, fontSize: ".78rem", color: isWe ? "#D97706" : "var(--muted)" }}>{DAYS_S2[i]}</div>
+                    <div style={{ width: 36, fontWeight: 700, fontSize: ".78rem", color: isWe ? "var(--warn)" : "var(--muted)" }}>{DAYS_S2[i]}</div>
                     <div
                       onClick={() => toggleWorkDay(m, d)}
                       style={{ width: 40, height: 22, borderRadius: 11, background: isWork ? m.color : "var(--border)", cursor: "pointer", position: "relative", transition: "background .2s", flexShrink: 0 }}
@@ -72,7 +72,7 @@ export function ScheduleView({ members, tasks, updateMember }: ViewProps) {
                     <span style={{ fontSize: ".75rem", fontWeight: isWork ? 700 : 500, color: isWork ? m.color : "var(--muted2)" }}>
                       {isWork ? dayLabel : freeLabel}
                     </span>
-                    {isWe && <span style={{ fontSize: ".65rem", color: "#D97706", marginLeft: "auto" }}>🏡</span>}
+                    {isWe && <span style={{ fontSize: ".65rem", color: "var(--warn)", marginLeft: "auto" }}>🏡</span>}
                   </div>
 
                   {isWork && wh && (
@@ -111,21 +111,21 @@ export function ScheduleView({ members, tasks, updateMember }: ViewProps) {
             const color = isWe ? load > 4 ? "var(--danger)" : "var(--warn)" : load > 6 ? "var(--danger)" : "var(--accent)";
             return (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: i < 6 ? 10 : 0 }}>
-                <div style={{ width: 28, fontSize: ".72rem", fontWeight: 700, color: isWe ? "#D97706" : "var(--muted)", flexShrink: 0 }}>{DAYS_S2[i]}</div>
+                <div style={{ width: 28, fontSize: ".72rem", fontWeight: 700, color: isWe ? "var(--warn)" : "var(--muted)", flexShrink: 0 }}>{DAYS_S2[i]}</div>
                 <div style={{ flex: 1, height: 8, background: "var(--border)", borderRadius: 99, overflow: "hidden" }}>
                   <div style={{ height: "100%", width: `${bar}%`, background: color, borderRadius: 99, transition: "width .5s ease" }} />
                 </div>
                 <div style={{ width: 20, fontSize: ".72rem", fontWeight: 700, color: "var(--muted)", textAlign: "right" }}>{load}</div>
-                {isWe && load > 4 && <Icon name="alert" size={14} color="#D97706" />}
+                {isWe && load > 4 && <Icon name="alert" size={14} color="var(--warn)" />}
               </div>
             );
           })}
         </div>
 
         {dayLoad[5] + dayLoad[6] > 8 && (
-          <div style={{ marginBottom: 16, background: "var(--warn-bg)", border: "1px solid #FDE68A", borderRadius: 12, padding: "12px 14px" }}>
-            <div style={{ fontWeight: 700, fontSize: ".82rem", color: "#92400E", marginBottom: 4 }}>💡 Conseil</div>
-            <div style={{ fontSize: ".78rem", color: "#B45309", lineHeight: 1.5 }}>Weekend chargé ({dayLoad[5] + dayLoad[6]} tâches). Pensez à redistribuer en semaine !</div>
+          <div style={{ marginBottom: 16, background: "var(--warn-bg)", border: "1px solid var(--warn)", borderRadius: 12, padding: "12px 14px" }}>
+            <div style={{ fontWeight: 700, fontSize: ".82rem", color: "var(--text)", marginBottom: 4 }}>💡 Conseil</div>
+            <div style={{ fontSize: ".78rem", color: "var(--muted)", lineHeight: 1.5 }}>Weekend chargé ({dayLoad[5] + dayLoad[6]} tâches). Pensez à redistribuer en semaine !</div>
           </div>
         )}
 

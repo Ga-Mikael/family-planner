@@ -152,13 +152,13 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
                 onClick={() => { setDetailDay(isSel ? null : dom); setExpandedStat(null); }}
                 style={{ border: `1.5px solid ${isSel ? "var(--text)" : isToday ? "var(--accent)" : "transparent"}`, borderRadius: 10, padding: "5px 2px 4px", background: isSel ? "var(--text)" : isToday ? "var(--accent-bg)" : "transparent", cursor: "pointer", textAlign: "center", transition: "all .15s", position: "relative" }}
               >
-                <div style={{ fontSize: ".88rem", fontWeight: isToday || isSel ? 800 : 500, color: isSel ? "white" : isToday ? "var(--accent)" : isWe ? "#D97706" : "var(--text)", lineHeight: 1.2 }}>{dom}</div>
+                <div style={{ fontSize: ".88rem", fontWeight: isToday || isSel ? 800 : 500, color: isSel ? "var(--bg)" : isToday ? "var(--accent)" : isWe ? "var(--warn)" : "var(--text)", lineHeight: 1.2 }}>{dom}</div>
                 <div style={{ display: "flex", justifyContent: "center", gap: 2, marginTop: 3, minHeight: 5 }}>
                   {dtl.length === 0 ? null : doneAll
-                    ? <div style={{ width: 5, height: 5, borderRadius: "50%", background: isSel ? "white" : "var(--green)" }} />
+                    ? <div style={{ width: 5, height: 5, borderRadius: "50%", background: isSel ? "var(--bg)" : "var(--green)" }} />
                     : dotColors.length > 0
-                      ? dotColors.map((c, ci) => <div key={ci} style={{ width: 4, height: 4, borderRadius: "50%", background: isSel ? "white" : c }} />)
-                      : <div style={{ width: 4, height: 4, borderRadius: "50%", background: isSel ? "white" : "var(--accent)" }} />
+                      ? dotColors.map((c, ci) => <div key={ci} style={{ width: 4, height: 4, borderRadius: "50%", background: isSel ? "var(--bg)" : c }} />)
+                      : <div style={{ width: 4, height: 4, borderRadius: "50%", background: isSel ? "var(--bg)" : "var(--accent)" }} />
                   }
                 </div>
                 {(holiday || vac) && <div style={{ width: 4, height: 4, borderRadius: "50%", background: holiday ? "#DC2626" : vac!.color, margin: "1px auto 0" }} />}
@@ -181,13 +181,13 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
               <div style={{ display: "flex", gap: 6 }}>
                 <button
                   onClick={() => { setShowAddForm((f) => !f); setAName(""); setAMembers([]); setAPrio("med"); setARec("once"); setATime(""); }}
-                  style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid var(--border)", background: showAddForm ? "var(--text)" : "white", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: showAddForm ? "white" : "var(--muted)" }}
+                  style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid var(--border)", background: showAddForm ? "var(--text)" : "var(--surface)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: showAddForm ? "var(--bg)" : "var(--muted)" }}
                 >
                   <Icon name="plus" size={14} sw={2.5} />
                 </button>
                 <button
                   onClick={() => { setDetailDay(null); setShowAddForm(false); }}
-                  style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid var(--border)", background: "white", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--muted)" }}
+                  style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--muted)" }}
                 >
                   <Icon name="x" size={13} />
                 </button>
@@ -208,7 +208,7 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
 
             {/* Formulaire ajout rapide */}
             {showAddForm && (
-              <div style={{ background: "white", borderRadius: 12, padding: "10px 12px", marginBottom: 10, display: "flex", flexDirection: "column", gap: 8, animation: "fadeUp .15s ease" }}>
+              <div style={{ background: "var(--surface)", borderRadius: 12, padding: "10px 12px", marginBottom: 10, display: "flex", flexDirection: "column", gap: 8, animation: "fadeUp .15s ease" }}>
                 <input
                   autoFocus
                   value={aName}
@@ -230,7 +230,7 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
                   {(["once", "daily", "weekly", "monthly", "annual"] as Recurrence[]).map((rec) => {
                     const active = aRec === rec;
                     return (
-                      <button key={rec} onClick={() => setARec(rec)} style={{ flex: "1 1 0", minWidth: 52, padding: "6px 4px", border: `1.5px solid ${active ? "var(--text)" : "var(--border)"}`, borderRadius: 8, background: active ? "var(--text)" : "var(--soft)", color: active ? "white" : "var(--muted)", fontSize: ".63rem", fontWeight: 700, cursor: "pointer" }}>
+                      <button key={rec} onClick={() => setARec(rec)} style={{ flex: "1 1 0", minWidth: 52, padding: "6px 4px", border: `1.5px solid ${active ? "var(--text)" : "var(--border)"}`, borderRadius: 8, background: active ? "var(--text)" : "var(--soft)", color: active ? "var(--bg)" : "var(--muted)", fontSize: ".63rem", fontWeight: 700, cursor: "pointer" }}>
                         {RECURRENCE_CONFIG[rec].short}
                       </button>
                     );
@@ -261,11 +261,11 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
                         onTouchEnd={()    => onTaskTouchEnd(t.id)}
                       >
                         {swipeOff > 0 && (
-                          <div style={{ position: "absolute", inset: 0, background: "#D1FAE5", display: "flex", alignItems: "center", paddingLeft: 12, opacity: Math.min(swipeOff / 60, 1), pointerEvents: "none", borderRadius: 10 }}>
-                            <Icon name="check" size={16} color="#059669" sw={2.5} />
+                          <div style={{ position: "absolute", inset: 0, background: "var(--green-bg)", display: "flex", alignItems: "center", paddingLeft: 12, opacity: Math.min(swipeOff / 60, 1), pointerEvents: "none", borderRadius: 10 }}>
+                            <Icon name="check" size={16} color="var(--green)" sw={2.5} />
                           </div>
                         )}
-                        <div style={{ background: "white", borderRadius: 10, padding: "9px 12px", display: "flex", alignItems: "center", gap: 9, borderLeft: `3px solid ${col}`, opacity: taskDone ? 0.55 : 1, transform: `translateX(${swipeOff}px)`, transition: swipeOff === 0 ? "transform .2s ease" : "none" }}>
+                        <div style={{ background: "var(--surface)", borderRadius: 10, padding: "9px 12px", display: "flex", alignItems: "center", gap: 9, borderLeft: `3px solid ${col}`, opacity: taskDone ? 0.55 : 1, transform: `translateX(${swipeOff}px)`, transition: swipeOff === 0 ? "transform .2s ease" : "none" }}>
                           <div onClick={() => toggleTask(t.id, selDateStr)} style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${taskDone ? col : col + "60"}`, background: taskDone ? col : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", transition: "all .2s" }}>
                             {taskDone && <Icon name="check" size={9} color="white" sw={3} />}
                           </div>
@@ -310,8 +310,8 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
                 onClick={() => setExpandedStat(isOpen ? null : key)}
                 style={{ background: isOpen ? "var(--text)" : "var(--soft)", border: `1px solid ${isOpen ? "var(--text)" : "var(--border)"}`, borderRadius: isOpen ? "12px 12px 0 0" : 12, padding: "10px", textAlign: "center", cursor: val > 0 ? "pointer" : "default", transition: "all .2s", userSelect: "none" }}
               >
-                <div style={{ fontWeight: 800, fontSize: "1.4rem", color: isOpen ? "white" : color, lineHeight: 1 }}>{val}</div>
-                <div style={{ fontSize: ".62rem", color: isOpen ? "rgba(255,255,255,.7)" : "var(--muted)", marginTop: 3, fontWeight: 600 }}>{label}</div>
+                <div style={{ fontWeight: 800, fontSize: "1.4rem", color: isOpen ? "var(--bg)" : color, lineHeight: 1 }}>{val}</div>
+                <div style={{ fontSize: ".62rem", color: isOpen ? "var(--muted2)" : "var(--muted)", marginTop: 3, fontWeight: 600 }}>{label}</div>
               </div>
             );
           })}
@@ -327,7 +327,7 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
               const pc  = PRIORITY_CONFIG[t.priority];
               const isDone = t.recurrence === "once" ? t.done : (t.doneDates?.length ?? 0) > 0;
               return (
-                <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "white", borderRadius: 10, marginBottom: 6, borderLeft: `3px solid ${col}`, opacity: isDone ? 0.5 : 1 }}>
+                <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "var(--surface)", borderRadius: 10, marginBottom: 6, borderLeft: `3px solid ${col}`, opacity: isDone ? 0.5 : 1 }}>
                   <div style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${isDone ? col : col + "50"}`, background: isDone ? col : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     {isDone && <Icon name="check" size={9} color="white" sw={3} />}
                   </div>

@@ -74,13 +74,13 @@ export default function App() {
 
       {/* Bandeau erreur Supabase */}
       {data.dbError && (
-        <div style={{ position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, zIndex: 9998, padding: "10px 16px", background: "#FEF2F2", borderBottom: "2px solid #FCA5A5", display: "flex", alignItems: "flex-start", gap: 8 }}>
+        <div style={{ position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, zIndex: 9998, padding: "10px 16px", background: "var(--danger-bg)", borderBottom: "2px solid var(--danger)", display: "flex", alignItems: "flex-start", gap: 8 }}>
           <span style={{ fontSize: "1rem", flexShrink: 0 }}>⚠️</span>
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: ".78rem", color: "#DC2626", marginBottom: 2 }}>Problème Supabase — les données ne sont pas sauvegardées</div>
-            <div style={{ fontSize: ".72rem", color: "#7F1D1D", fontFamily: "monospace", wordBreak: "break-all" }}>{data.dbError}</div>
+            <div style={{ fontWeight: 700, fontSize: ".78rem", color: "var(--danger)", marginBottom: 2 }}>Problème Supabase — les données ne sont pas sauvegardées</div>
+            <div style={{ fontSize: ".72rem", color: "var(--muted)", fontFamily: "monospace", wordBreak: "break-all" }}>{data.dbError}</div>
           </div>
-          <button onClick={() => data.setDbError(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#DC2626", fontSize: 16, padding: 0, lineHeight: 1, flexShrink: 0 }}>✕</button>
+          <button onClick={() => data.setDbError(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger)", fontSize: 16, padding: 0, lineHeight: 1, flexShrink: 0 }}>✕</button>
         </div>
       )}
 
