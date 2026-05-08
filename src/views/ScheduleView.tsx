@@ -170,20 +170,11 @@ export function ScheduleView({ members, tasks, updateMember }: ViewProps) {
             </div>
           </div>
           <div style={{ flex: 1, background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.4)", borderRadius: 14, padding: "8px 10px", display: "flex", alignItems: "center", gap: 8, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }}>
-            <div style={{ width: 28, height: 28, borderRadius: 10, background: "var(--violet-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Icon name="flag" size={14} color="var(--violet)" sw={2.2} />
-            </div>
-            <div>
-              <div style={{ fontSize: ".62rem", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".3px" }}>Pic</div>
-              <div style={{ fontSize: ".95rem", fontWeight: 900, color: "var(--text)", lineHeight: 1 }}>{maxLoad}</div>
-            </div>
-          </div>
-          <div style={{ flex: 1, background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.4)", borderRadius: 14, padding: "8px 10px", display: "flex", alignItems: "center", gap: 8, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }}>
             <div style={{ width: 28, height: 28, borderRadius: 10, background: "var(--accent-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Icon name="clock" size={14} color="var(--accent)" sw={2.2} />
             </div>
             <div>
-              <div style={{ fontSize: ".62rem", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".3px" }}>Total</div>
+              <div style={{ fontSize: ".62rem", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".3px" }}>Tâches</div>
               <div style={{ fontSize: ".95rem", fontWeight: 900, color: "var(--text)", lineHeight: 1 }}>{totalLoad}</div>
             </div>
           </div>
