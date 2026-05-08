@@ -122,6 +122,26 @@ input, select, textarea, button { font-family: var(--font-body); }
 [data-theme="dark"] .fp-home-header {
   background: transparent;
 }
+
+.fp-tasks-header {
+  padding: 52px 18px 0;
+  transition: background .5s;
+}
+:root .fp-tasks-header {
+  background: linear-gradient(155deg, #FFDDE9 0%, #EDE8FF 100%);
+}
+[data-theme="dark"] .fp-tasks-header {
+  background: transparent;
+}
+
+.fp-tab-bar {
+  transition: background .4s;
+}
+[data-theme="dark"] .fp-tab-bar {
+  background: rgba(255,255,255,.07) !important;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 14px;
+}
 `;
 
 export const inputStyle: CSSProperties = {

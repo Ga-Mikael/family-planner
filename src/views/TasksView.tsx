@@ -76,25 +76,41 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
 
   return (
     <div style={{ animation: "fadeUp .35s ease" }}>
-      <PgHdr
-        title="Tâches"
-        sub={activeTab === "tasks"
-          ? `${tasks.filter((t) => !t.done).length} à faire · ${tasks.filter((t) => t.done).length} faites`
-          : `${reminders.length} rappel${reminders.length !== 1 ? "s" : ""}`
-        }
-      />
-
-      {/* Onglets Tâches / Rappels */}
-      <div style={{ display: "flex", borderBottom: "1px solid var(--border)", padding: "0 16px" }}>
-        {([["tasks", "📝 Tâches"], ["reminders", "🔔 Rappels"]] as const).map(([id, label]) => (
-          <button
-            key={id}
-            onClick={() => setActiveTab(id)}
-            style={{ flex: 1, border: "none", background: "none", cursor: "pointer", padding: "10px 0", fontSize: ".8rem", fontWeight: 700, color: activeTab === id ? "var(--accent)" : "var(--muted2)", borderBottom: `2.5px solid ${activeTab === id ? "var(--accent)" : "transparent"}`, marginBottom: -1, transition: "all .2s" }}
-          >
-            {label}
-          </button>
-        ))}
+      {/* Header gradient + tab bar pills */}
+      <div className="fp-tasks-header">
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: ".68rem", fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 3 }}>
+            {activeTab === "tasks"
+              ? `${tasks.filter((t) => !t.done).length} à faire · ${tasks.filter((t) => t.done).length} faites`
+              : `${reminders.length} rappel${reminders.length !== 1 ? "s" : ""}`}
+          </div>
+          <h1 style={{ fontWeight: 900, fontSize: "1.35rem", lineHeight: 1, color: "var(--text)" }}>Tâches 📋</h1>
+        </div>
+        {/* Tab bar — pill style */}
+        <div style={{ display: "flex", gap: 6, padding: 4, borderRadius: 14, background: "rgba(0,0,0,.05)", marginBottom: 0 }}
+             className="fp-tab-bar">
+          {([["tasks", "📝 Tâches"], ["reminders", "🔔 Rappels"]] as const).map(([id, label]) => {
+            const active = activeTab === id;
+            return (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                style={{
+                  flex: 1, border: active ? "1px solid rgba(255,123,181,.25)" : "none",
+                  borderRadius: 10, padding: "8px 0",
+                  background: active ? "var(--accent)" : "transparent",
+                  fontSize: ".82rem", fontWeight: active ? 800 : 700,
+                  color: active ? "white" : "var(--muted2)",
+                  cursor: "pointer", transition: "all .2s",
+                  boxShadow: active ? "0 3px 10px rgba(255,123,181,.3)" : "none",
+                  fontFamily: "inherit",
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ── ONGLET TÂCHES ── */}
@@ -169,9 +185,31 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
               </div>
             </div>
           ) : (
-            <button onClick={() => setShow(true)} style={{ ...primaryBtn, width: "100%", marginBottom: 12 }}>
-              <Icon name="plus" size={16} sw={2.5} /> Nouvelle tâche
-            </button>
+            <div
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                background: "var(--surface)", border: "1px solid var(--card-border)",
+                boxShadow: "var(--card-shadow)", borderRadius: 18,
+                padding: "11px 14px", marginBottom: 12, cursor: "text",
+              }}
+              onClick={() => setShow(true)}
+            >
+              <Icon name="plus" size={15} sw={2.2} color="var(--muted2)" />
+              <span style={{ flex: 1, fontSize: ".875rem", fontWeight: 600, color: "var(--muted2)" }}>
+                Nouvelle tâche…
+              </span>
+              <button
+                onClick={(e) => { e.stopPropagation(); setShow(true); }}
+                style={{
+                  width: 32, height: 32, borderRadius: 10, border: "none",
+                  background: "var(--accent)", cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: "0 3px 10px rgba(255,123,181,.4)", flexShrink: 0,
+                }}
+              >
+                <Icon name="plus" size={15} sw={2.5} color="white" />
+              </button>
+            </div>
           )}
 
           {/* Suggestions rapides */}
