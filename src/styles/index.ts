@@ -135,7 +135,7 @@ input, select, textarea, button { font-family: var(--font-body); }
 }
 
 .fp-agenda-header {
-  padding: 52px 18px 18px;
+  padding: 52px 18px 26px;
   transition: background .5s;
 }
 :root .fp-agenda-header {

@@ -107,24 +107,46 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
     >
       {/* Header gradient */}
       <div className="fp-agenda-header">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <button onClick={() => { setViewDate(new Date(year, month - 1, 1)); setDetailDay(null); }} style={navBtn}>
+        {/* Row: nav + month title */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <button onClick={() => { setViewDate(new Date(year, month - 1, 1)); setDetailDay(null); }} style={{ ...navBtn, borderRadius: 99 }}>
             <Icon name="chevronLeft" size={16} />
           </button>
+
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: ".68rem", fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 3 }}>
-              {tasks.length} tâche{tasks.length !== 1 ? "s" : ""} ce mois
-            </div>
-            <h1 style={{ fontWeight: 900, fontSize: "1.35rem", lineHeight: 1, color: "var(--text)", letterSpacing: "-.3px" }}>
-              {MONTHS[month]} {year}
+            {/* Today chip — only current month */}
+            {isCurrentMonth ? (
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "var(--accent-bg)", border: "1px solid var(--accent)", borderRadius: 99, padding: "3px 10px", marginBottom: 7 }}>
+                <div style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--accent)" }} />
+                <span style={{ fontSize: ".62rem", fontWeight: 800, color: "var(--accent)", textTransform: "uppercase", letterSpacing: ".5px" }}>
+                  Aujourd'hui · {DAYS_F[(today.getDay() === 0 ? 6 : today.getDay() - 1) as DayIndex].slice(0, 3)}. {today.getDate()}
+                </span>
+              </div>
+            ) : (
+              <div style={{ height: 22, marginBottom: 7 }} />
+            )}
+            <h1 style={{ fontWeight: 900, fontSize: "1.65rem", lineHeight: 1, color: "var(--text)", letterSpacing: "-.5px" }}>
+              {MONTHS[month]}{" "}
+              <span style={{ color: "var(--muted2)", fontWeight: 400, fontSize: "1.3rem" }}>{year}</span>
             </h1>
           </div>
+
           <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={() => { setViewDate(new Date(today.getFullYear(), today.getMonth(), 1)); setDetailDay(today.getDate()); }} style={{ ...navBtn, fontSize: ".65rem", fontWeight: 700, padding: "0 8px", width: "auto" }}>Auj.</button>
-            <button onClick={() => { setViewDate(new Date(year, month + 1, 1)); setDetailDay(null); }} style={navBtn}>
+            <button
+              onClick={() => { setViewDate(new Date(today.getFullYear(), today.getMonth(), 1)); setDetailDay(today.getDate()); }}
+              style={{ height: 32, borderRadius: 99, border: "none", background: "var(--accent)", color: "white", fontSize: ".62rem", fontWeight: 800, padding: "0 12px", cursor: "pointer", letterSpacing: ".3px", boxShadow: "0 2px 8px rgba(255,123,181,.35)" }}
+            >
+              Auj.
+            </button>
+            <button onClick={() => { setViewDate(new Date(year, month + 1, 1)); setDetailDay(null); }} style={{ ...navBtn, borderRadius: 99 }}>
               <Icon name="chevronRight" size={16} />
             </button>
           </div>
+        </div>
+
+        {/* Barre progression du mois */}
+        <div style={{ height: 3, borderRadius: 99, background: "rgba(0,0,0,.08)", overflow: "hidden" }}>
+          <div style={{ height: "100%", borderRadius: 99, background: "linear-gradient(90deg, var(--violet), var(--accent))", width: `${Math.min(100, (today.getDate() / daysInMonth) * 100)}%`, transition: "width .4s ease" }} />
         </div>
       </div>
 
