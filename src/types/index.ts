@@ -111,4 +111,6 @@ export type ViewProps = {
   deleteRoom: (id: string) => void;
   weekendWarn: boolean;
   burst: () => void;
+  isDark?: boolean;
+  toggleTheme?: () => void;
 };

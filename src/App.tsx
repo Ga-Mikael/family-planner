@@ -6,6 +6,7 @@ import { todayIdx, isWeekend } from "./lib/utils";
 import { GLOBAL_CSS } from "./styles";
 import { useAppData } from "./hooks/useAppData";
 import { useNotifications } from "./hooks/useNotifications";
+import { useTheme } from "./hooks/useTheme";
 import { LoadingScreen }    from "./components/LoadingScreen";
 import { LoginScreen }      from "./components/LoginScreen";
 import { FamilySetupScreen } from "./components/FamilySetupScreen";
@@ -41,6 +42,7 @@ export default function App() {
 
   const data = useAppData(session);
   useNotifications(data.tasks, data.reminders);
+  const { isDark, toggleTheme } = useTheme();
 
   if (!authReady)       return <LoadingScreen message="Initialisation…" />;
   if (!session)         return <LoginScreen />;
@@ -60,10 +62,11 @@ export default function App() {
     updateMember: data.updateMember, addMember: data.addMember, deleteMember: data.deleteMember,
     addRoom: data.addRoom, deleteRoom: data.deleteRoom,
     weekendWarn, burst: data.burst,
+    isDark, toggleTheme,
   };
 
   return (
-    <div style={{ maxWidth: 430, margin: "0 auto", minHeight: "100vh", background: "var(--bg)", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
+    <div className="fp-app-root" style={{ maxWidth: 430, margin: "0 auto", minHeight: "100vh", background: "var(--bg)", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
       {/* Confetti */}
       {data.confetti.map((c) => (
         <div key={c.id} style={{ position: "fixed", left: `${c.x}%`, top: "40%", width: 9, height: 9, borderRadius: 2, background: c.color, animationName: "confDrop", animationDuration: ".9s", animationDelay: `${c.delay}s`, animationFillMode: "forwards", pointerEvents: "none", zIndex: 9999 }} />

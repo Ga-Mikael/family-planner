@@ -91,7 +91,13 @@ export function HomeTaskCard({ task, members, rooms, onToggle, onDelete, onEdit,
       <div
         onClick={() => onToggle(task.id, dateStr)}
         style={{
-          flex: 1, background: bg, borderRadius: 13,
+          flex: 1,
+          background: "var(--surface)",
+          border: "1px solid var(--card-border)",
+          boxShadow: "var(--card-shadow)",
+          backdropFilter: "var(--card-blur, none)",
+          WebkitBackdropFilter: "var(--card-blur, none)",
+          borderRadius: 13,
           padding: "10px 12px", display: "flex", alignItems: "center",
           gap: 10, position: "relative", minHeight: 52,
           transform: `translateX(${swipeOffset}px)`,
@@ -101,8 +107,8 @@ export function HomeTaskCard({ task, members, rooms, onToggle, onDelete, onEdit,
         {/* Checkbox */}
         <div style={{
           width: 22, height: 22, borderRadius: "50%",
-          border: `2.5px solid ${isDone ? color : color + "60"}`,
-          background: isDone ? color : "transparent",
+          border: `2.5px solid ${isDone ? "var(--green)" : "var(--border)"}`,
+          background: isDone ? "var(--green)" : "transparent",
           display: "flex", alignItems: "center", justifyContent: "center",
           flexShrink: 0, color: "white", fontSize: ".7rem", transition: "all .2s",
         }}>

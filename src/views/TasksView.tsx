@@ -90,7 +90,7 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
           <button
             key={id}
             onClick={() => setActiveTab(id)}
-            style={{ flex: 1, border: "none", background: "none", cursor: "pointer", padding: "10px 0", fontSize: ".8rem", fontWeight: 700, color: activeTab === id ? "var(--text)" : "var(--muted2)", borderBottom: `2.5px solid ${activeTab === id ? "var(--text)" : "transparent"}`, marginBottom: -1, transition: "all .2s" }}
+            style={{ flex: 1, border: "none", background: "none", cursor: "pointer", padding: "10px 0", fontSize: ".8rem", fontWeight: 700, color: activeTab === id ? "var(--accent)" : "var(--muted2)", borderBottom: `2.5px solid ${activeTab === id ? "var(--accent)" : "transparent"}`, marginBottom: -1, transition: "all .2s" }}
           >
             {label}
           </button>
@@ -185,8 +185,8 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
         <div style={{ padding: "16px" }}>
           {/* Bannière notifications */}
           <div style={{ background: notifPerm === "granted" ? "#D1FAE5" : "var(--soft)", border: `1px solid ${notifPerm === "granted" ? "#6EE7B7" : "var(--border)"}`, borderRadius: 14, padding: "12px 14px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: notifPerm === "granted" ? "#A7F3D0" : "#EDE9FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Icon name="bell" size={17} color={notifPerm === "granted" ? "#059669" : "#7C3AED"} />
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: notifPerm === "granted" ? "var(--green-bg)" : "var(--violet-bg)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Icon name="bell" size={17} color={notifPerm === "granted" ? "var(--green)" : "var(--violet)"} />
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 700, fontSize: ".85rem" }}>
@@ -244,10 +244,10 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
                 <div key={i} style={{ marginBottom: 14 }}>
                   <div style={{ fontSize: ".68rem", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 8 }}>{d}</div>
                   {dr.map((r) => (
-                    <div key={r.id} style={{ background: "#EDE9FE", borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
+                    <div key={r.id} style={{ background: "var(--violet-bg)", borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
                       <span style={{ fontSize: "1.3rem" }}>{r.emoji}</span>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 700, fontSize: ".875rem", color: "#4C3899" }}>{r.title}</div>
+                        <div style={{ fontWeight: 700, fontSize: ".875rem", color: "var(--text)" }}>{r.title}</div>
                         <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
                           {r.time && <span style={{ fontSize: ".7rem", color: "#7C5CD9" }}>{r.time}</span>}
                           {r.date && <span style={{ fontSize: ".7rem", color: "#7C5CD9", fontWeight: 600 }}>📅 {r.date}</span>}

@@ -93,64 +93,71 @@ export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, se
       onTouchStart={onSwipeTouchStart}
       onTouchEnd={onSwipeTouchEnd}
     >
-      {/* Header */}
-      <div style={{ padding: "16px 20px 8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--text)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Icon name="home" size={18} color="white" sw={2} />
-          </div>
+      {/* Gradient header with embedded week strip */}
+      <div className="fp-home-header">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
           <div>
-            <h1 style={{ fontWeight: 800, fontSize: "1.25rem", lineHeight: 1 }}>{month}</h1>
-            <div style={{ fontSize: ".65rem", color: "var(--muted)", marginTop: 2 }}>
-              Semaine {weekOff === 0 ? "courante" : weekOff > 0 ? "+" + weekOff : weekOff}
+            <div style={{ fontSize: ".7rem", fontWeight: 700, color: "var(--accent)", letterSpacing: ".5px", marginBottom: 3, textTransform: "uppercase" }}>
+              {month} · Sem. {weekOff === 0 ? "courante" : weekOff > 0 ? "+" + weekOff : weekOff}
             </div>
+            <h1 style={{ fontWeight: 900, fontSize: "1.35rem", lineHeight: 1, color: "var(--text)" }}>
+              Bonjour ! 👋
+            </h1>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={() => setWeekOff(weekOff - 1)} style={navBtn}><Icon name="chevronLeft" size={16} /></button>
+            {weekOff !== 0 && (
+              <button onClick={() => setWeekOff(0)} style={{ ...navBtn, fontSize: ".7rem", fontWeight: 700, padding: "0 10px", width: "auto" }}>Auj.</button>
+            )}
+            <button onClick={() => setWeekOff(weekOff + 1)} style={navBtn}><Icon name="chevronRight" size={16} /></button>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 6 }}>
-          <button onClick={() => setWeekOff(weekOff - 1)} style={navBtn}><Icon name="chevronLeft" size={16} /></button>
-          {weekOff !== 0 && (
-            <button onClick={() => setWeekOff(0)} style={{ ...navBtn, fontSize: ".7rem", fontWeight: 700, padding: "0 10px", width: "auto" }}>Auj.</button>
-          )}
-          <button onClick={() => setWeekOff(weekOff + 1)} style={navBtn}><Icon name="chevronRight" size={16} /></button>
+
+        {/* Week strip embedded in header */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 3 }}>
+          {DAYS_S.map((_, i) => {
+            const d = i as DayIndex;
+            const isTd = d === today && weekOff === 0, isSel = d === selDay, isWe = isWeekend(d);
+            const cnt = dayItems(d).length, dc = doneCnt(d);
+            const wd = getWeekDate(i);
+            const wdHol = getFrenchHolidays(wd.getFullYear()).get(dateKey(wd));
+            const wdVac = getVacation(wd);
+            return (
+              <button key={i} onClick={() => setSelDay(d)} style={{ border: "none", background: "none", cursor: "pointer", textAlign: "center", padding: "4px 1px" }}>
+                <div style={{ fontSize: ".58rem", fontWeight: 800, color: isWe ? "var(--warn)" : "var(--muted2)", marginBottom: 3, textTransform: "uppercase" }}>{DAYS_S[i]}</div>
+                <div style={{
+                  width: 32, height: 32, borderRadius: 10, margin: "0 auto",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: isSel ? "var(--accent)" : isTd ? "var(--accent-bg)" : "transparent",
+                  fontWeight: isSel || isTd ? 900 : 600,
+                  fontSize: ".9rem",
+                  color: isSel ? "white" : isTd ? "var(--accent)" : "var(--text)",
+                  transition: "all .2s",
+                }}>
+                  {dates[i]}
+                </div>
+                {cnt > 0 && (
+                  <div style={{ marginTop: 3, display: "flex", justifyContent: "center" }}>
+                    <div style={{ height: 3, borderRadius: 99, background: dc === cnt ? "var(--green)" : "var(--accent)", width: Math.min(24, cnt * 6) + "%", minWidth: 6, opacity: isSel ? 0.9 : 0.5 }} />
+                  </div>
+                )}
+                {(wdHol || wdVac) && <div style={{ width: 4, height: 4, borderRadius: "50%", background: wdHol ? "var(--danger)" : (wdVac?.color ?? "#888"), marginTop: 1, margin: "1px auto 0" }} />}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* Alerte weekend */}
       {weekendWarn && weekOff === 0 && (
-        <div style={{ margin: "0 16px 8px", background: "var(--warn-bg)", border: "1px solid #FDE68A", borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10 }}>
-          <Icon name="alert" size={18} color="#D97706" />
+        <div style={{ margin: "0 16px 8px", background: "var(--warn-bg)", border: "1px solid var(--warn)", borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+          <Icon name="alert" size={18} color="var(--warn)" />
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: ".82rem", fontWeight: 700, color: "#92400E" }}>Weekend chargé !</div>
-            <div style={{ fontSize: ".7rem", color: "#B45309" }}>{weTasks.length - weDone} tâches restantes Sam-Dim</div>
+            <div style={{ fontSize: ".82rem", fontWeight: 700, color: "var(--text)" }}>Weekend chargé !</div>
+            <div style={{ fontSize: ".7rem", color: "var(--muted)" }}>{weTasks.length - weDone} tâches restantes Sam-Dim</div>
           </div>
         </div>
       )}
-
-      {/* Bande semaine */}
-      <div style={{ padding: "4px 10px 12px", display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2 }}>
-        {DAYS_S.map((_, i) => {
-          const d = i as DayIndex;
-          const isTd = d === today && weekOff === 0, isSel = d === selDay, isWe = isWeekend(d);
-          const cnt = dayItems(d).length, dc = doneCnt(d);
-          const wd = getWeekDate(i);
-          const wdHol = getFrenchHolidays(wd.getFullYear()).get(dateKey(wd));
-          const wdVac = getVacation(wd);
-          return (
-            <button key={i} onClick={() => setSelDay(d)} style={{ border: "none", background: "none", cursor: "pointer", textAlign: "center", padding: "4px 2px" }}>
-              <div style={{ fontSize: ".58rem", fontWeight: 700, color: isWe ? "var(--warn)" : "var(--muted2)", marginBottom: 3, textTransform: "uppercase" }}>{DAYS_S[i]}</div>
-              <div style={{ width: 34, height: 34, borderRadius: "50%", margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "center", background: isSel ? "var(--text)" : isTd ? "#F3F4F6" : "transparent", fontWeight: isSel || isTd ? 800 : 500, fontSize: ".95rem", color: isSel ? "white" : "var(--text)", transition: "all .2s" }}>
-                {dates[i]}
-              </div>
-              {cnt > 0 && (
-                <div style={{ marginTop: 3, display: "flex", justifyContent: "center" }}>
-                  <div style={{ height: 3, borderRadius: 99, background: dc === cnt ? "var(--green)" : "var(--accent)", width: Math.min(24, cnt * 6) + "%", minWidth: 6, opacity: isSel ? 0.9 : 0.5 }} />
-                </div>
-              )}
-              {(wdHol || wdVac) && <div style={{ width: 4, height: 4, borderRadius: "50%", background: wdHol ? "#DC2626" : (wdVac?.color ?? "#888"), marginTop: 1, margin: "1px auto 0" }} />}
-            </button>
-          );
-        })}
-      </div>
 
       {/* Agenda */}
       <div style={{ padding: "0 16px" }}>
