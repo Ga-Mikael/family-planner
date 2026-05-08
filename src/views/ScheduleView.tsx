@@ -8,7 +8,7 @@ import { DAYS_F, DAYS_S2 } from "../lib/constants";
 
 
 export function ScheduleView({ members, tasks, updateMember }: ViewProps) {
-  const [expanded, setExpanded] = useState<string | null>(members[0]?.id || null);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   const dayLoad = DAYS_F.map((_, i) => tasks.filter((t) => t.day === i && !t.done).length);
   const maxLoad = Math.max(...dayLoad, 1);
