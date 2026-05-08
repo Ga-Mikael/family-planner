@@ -12,7 +12,11 @@ import { todayIdx, isWeekend, getWorkConflict } from "../lib/utils";
 import { DAYS_F, PRIORITY_CONFIG, RECURRENCE_CONFIG } from "../lib/constants";
 import { inputStyle, primaryBtn, ghostBtn } from "../styles";
 
-export function TasksView({ members, tasks, rooms, addTask, toggleTask, deleteTask, updateTask }: ViewProps) {
+export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTask, deleteTask, updateTask, addReminder, deleteRem }: ViewProps) {
+  // ── Onglets ───────────────────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<"tasks" | "reminders">("tasks");
+
+  // ── Tâches ────────────────────────────────────────────────────────────────
   const [show,       setShow]       = useState(false);
   const [fname,      setFname]      = useState("");
   const [fms,        setFms]        = useState<string[]>([]);
@@ -37,9 +41,9 @@ export function TasksView({ members, tasks, rooms, addTask, toggleTask, deleteTa
   const filtered = [...tasks]
     .filter((t) => {
       if (search && !t.name.toLowerCase().includes(search.toLowerCase())) return false;
-      if (filt === "todo") return !t.done;
-      if (filt === "done") return t.done;
-      if (filt === "high") return t.priority === "high" && !t.done;
+      if (filt === "todo")    return !t.done;
+      if (filt === "done")    return t.done;
+      if (filt === "high")    return t.priority === "high" && !t.done;
       if (filt === "weekend") return isWeekend(t.day) && !t.done;
       return true;
     })
@@ -47,88 +51,219 @@ export function TasksView({ members, tasks, rooms, addTask, toggleTask, deleteTa
 
   const urgentCount = tasks.filter((t) => t.priority === "high" && !t.done).length;
 
+  // ── Rappels ───────────────────────────────────────────────────────────────
+  const [rt,         setRt]         = useState("");
+  const [reTime,     setReTime]     = useState("");
+  const [reDayVal,   setReDayVal]   = useState(String(todayIdx()));
+  const [reEmojiVal, setReEmojiVal] = useState("🔔");
+  const [reDate,     setReDate]     = useState("");
+
+  const [notifPerm, setNotifPerm] = useState<NotificationPermission>(
+    typeof Notification !== "undefined" ? Notification.permission : "default"
+  );
+  const requestNotifPerm = async () => {
+    if (typeof Notification === "undefined") return;
+    const perm = await Notification.requestPermission();
+    setNotifPerm(perm);
+    if (perm === "granted") new Notification("Family Planner 🏠", { body: "Notifications activées pour tâches et rappels !" });
+  };
+
+  const submitReminder = () => {
+    if (!rt.trim()) return;
+    addReminder({ title: rt.trim(), time: reTime, day: parseInt(reDayVal) as DayIndex, emoji: reEmojiVal || "🔔", date: reDate || undefined });
+    setRt(""); setReTime(""); setReDate("");
+  };
+
   return (
     <div style={{ animation: "fadeUp .35s ease" }}>
-      <PgHdr title="Tâches" sub={`${tasks.filter((t) => !t.done).length} à faire · ${tasks.filter((t) => t.done).length} faites`} />
-      <div style={{ padding: "14px 16px" }}>
-        {/* Recherche */}
-        <div style={{ position: "relative", marginBottom: 12 }}>
-          <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--muted2)" }}>
-            <Icon name="search" size={15} />
-          </div>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher…" style={{ ...inputStyle, paddingLeft: 36 }} />
-        </div>
-
-        {/* Filtres */}
-        <div style={{ display: "flex", gap: 6, marginBottom: 12, overflowX: "auto", scrollbarWidth: "none" }}>
-          {([["all", "Toutes"], ["todo", "À faire"], ["done", "Faites"], ["high", `🔴 Urgentes${urgentCount > 0 ? " (" + urgentCount + ")" : ""}`], ["weekend", "🏡 Week-end"]] as const).map(([v, l]) => (
-            <Chip key={v} label={l} active={filt === v} onClick={() => setFilt(v)} />
-          ))}
-        </div>
-
-        {/* Formulaire d'ajout */}
-        {show ? (
-          <div style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 16, padding: 16, marginBottom: 14, animation: "fadeUp .2s ease" }}>
-            <input value={fname} onChange={(e) => setFname(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} placeholder="Nom de la tâche…" style={{ ...inputStyle, marginBottom: 8, background: "white" }} />
-            <MemberToggleBar members={members} selected={fms} onChange={setFms} />
-            <select value={fd} onChange={(e) => setFd(e.target.value)} style={{ ...inputStyle, marginBottom: 8, background: "white" }}>
-              {DAYS_F.map((d, i) => <option key={i} value={i}>{d}</option>)}
-            </select>
-            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-              <select value={fr} onChange={(e) => setFr(e.target.value)} style={{ ...inputStyle, flex: 1, background: "white" }}>
-                {rooms.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
-              <input type="time" value={ftime} onChange={(e) => setFtime(e.target.value)} style={{ ...inputStyle, flex: 1, background: "white" }} />
-            </div>
-            <div style={{ display: "flex", gap: 5, marginBottom: 8 }}>
-              {(["low", "med", "high"] as Priority[]).map((p) => {
-                const c = PRIORITY_CONFIG[p];
-                return <button key={p} onClick={() => setFp(p)} style={{ flex: 1, padding: "7px 4px", border: `1.5px solid ${fp === p ? c.color : "var(--border)"}`, borderRadius: 8, background: fp === p ? c.bg : "white", color: fp === p ? c.color : "var(--muted)", fontSize: ".7rem", fontWeight: 700, cursor: "pointer" }}>{c.label}</button>;
-              })}
-            </div>
-            <div style={{ display: "flex", gap: 5, marginBottom: 8 }}>
-              {(["once", "daily", "weekly", "monthly"] as Recurrence[]).map((rec) => {
-                const a = frec === rec;
-                return <button key={rec} onClick={() => setFrec(rec)} style={{ flex: 1, padding: "6px 4px", border: `1.5px solid ${a ? "var(--text)" : "var(--border)"}`, borderRadius: 8, background: a ? "var(--text)" : "white", color: a ? "white" : "var(--muted)", fontSize: ".65rem", fontWeight: 700, cursor: "pointer" }}>{RECURRENCE_CONFIG[rec].short}</button>;
-              })}
-            </div>
-            <input value={fnote} onChange={(e) => setFnote(e.target.value)} placeholder="Note optionnelle…" style={{ ...inputStyle, marginBottom: 8, background: "white", fontSize: ".8rem" }} />
-            <WorkConflictAlert conflict={conflict} />
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={submit} disabled={!!conflict} style={{ ...primaryBtn, flex: 1, opacity: conflict ? 0.6 : 1, cursor: conflict ? "not-allowed" : "pointer" }}>{conflict ? "⚠️ Conflit" : "Ajouter ✓"}</button>
-              <button onClick={() => setShow(false)} style={{ ...ghostBtn, flex: 1 }}>Annuler</button>
-            </div>
-          </div>
-        ) : (
-          <button onClick={() => setShow(true)} style={{ ...primaryBtn, width: "100%", marginBottom: 12 }}>
-            <Icon name="plus" size={16} sw={2.5} /> Nouvelle tâche
-          </button>
-        )}
-
-        {/* Suggestions rapides */}
-        {!show && (
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: ".68rem", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 8 }}>Suggestions rapides</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {["Faire la vaisselle", "Passer l'aspirateur", "Sortir les poubelles", "Faire la lessive", "Préparer les repas", "Nettoyer la cuisine"].map((s) => (
-                <button key={s} onClick={() => { setFname(s); setShow(true); }} style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 8, padding: "5px 10px", fontSize: ".72rem", fontWeight: 600, color: "var(--muted)", cursor: "pointer" }}>{s}</button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Liste des tâches */}
-        {filtered.length === 0
-          ? <Empty iconName="checkCircle" text="Aucune tâche ici !" />
-          : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {filtered.map((t) => (
-                <FullTaskCard key={t.id} task={t} members={members} rooms={rooms} onToggle={toggleTask} onDelete={deleteTask} onEdit={setEditingTask} />
-              ))}
-            </div>
-          )
+      <PgHdr
+        title="Tâches"
+        sub={activeTab === "tasks"
+          ? `${tasks.filter((t) => !t.done).length} à faire · ${tasks.filter((t) => t.done).length} faites`
+          : `${reminders.length} rappel${reminders.length !== 1 ? "s" : ""}`
         }
+      />
+
+      {/* Onglets Tâches / Rappels */}
+      <div style={{ display: "flex", borderBottom: "1px solid var(--border)", padding: "0 16px" }}>
+        {([["tasks", "📝 Tâches"], ["reminders", "🔔 Rappels"]] as const).map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => setActiveTab(id)}
+            style={{ flex: 1, border: "none", background: "none", cursor: "pointer", padding: "10px 0", fontSize: ".8rem", fontWeight: 700, color: activeTab === id ? "var(--text)" : "var(--muted2)", borderBottom: `2.5px solid ${activeTab === id ? "var(--text)" : "transparent"}`, marginBottom: -1, transition: "all .2s" }}
+          >
+            {label}
+          </button>
+        ))}
       </div>
+
+      {/* ── ONGLET TÂCHES ── */}
+      {activeTab === "tasks" && (
+        <div style={{ padding: "14px 16px" }}>
+          {/* Recherche */}
+          <div style={{ position: "relative", marginBottom: 12 }}>
+            <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--muted2)" }}>
+              <Icon name="search" size={15} />
+            </div>
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher…" style={{ ...inputStyle, paddingLeft: 36 }} />
+          </div>
+
+          {/* Filtres */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 12, overflowX: "auto", scrollbarWidth: "none" }}>
+            {([["all", "Toutes"], ["todo", "À faire"], ["done", "Faites"], ["high", `🔴 Urgentes${urgentCount > 0 ? " (" + urgentCount + ")" : ""}`], ["weekend", "🏡 Week-end"]] as const).map(([v, l]) => (
+              <Chip key={v} label={l} active={filt === v} onClick={() => setFilt(v)} />
+            ))}
+          </div>
+
+          {/* Formulaire d'ajout */}
+          {show ? (
+            <div style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 16, padding: 16, marginBottom: 14, animation: "fadeUp .2s ease" }}>
+              <input value={fname} onChange={(e) => setFname(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} placeholder="Nom de la tâche…" style={{ ...inputStyle, marginBottom: 8, background: "white" }} />
+              <MemberToggleBar members={members} selected={fms} onChange={setFms} />
+              <select value={fd} onChange={(e) => setFd(e.target.value)} style={{ ...inputStyle, marginBottom: 8, background: "white" }}>
+                {DAYS_F.map((d, i) => <option key={i} value={i}>{d}</option>)}
+              </select>
+              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                <select value={fr} onChange={(e) => setFr(e.target.value)} style={{ ...inputStyle, flex: 1, background: "white" }}>
+                  {rooms.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+                <input type="time" value={ftime} onChange={(e) => setFtime(e.target.value)} style={{ ...inputStyle, flex: 1, background: "white" }} />
+              </div>
+              <div style={{ display: "flex", gap: 5, marginBottom: 8 }}>
+                {(["low", "med", "high"] as Priority[]).map((p) => {
+                  const c = PRIORITY_CONFIG[p];
+                  return <button key={p} onClick={() => setFp(p)} style={{ flex: 1, padding: "7px 4px", border: `1.5px solid ${fp === p ? c.color : "var(--border)"}`, borderRadius: 8, background: fp === p ? c.bg : "white", color: fp === p ? c.color : "var(--muted)", fontSize: ".7rem", fontWeight: 700, cursor: "pointer" }}>{c.label}</button>;
+                })}
+              </div>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 8 }}>
+                {(["once", "daily", "weekly", "monthly", "annual"] as Recurrence[]).map((rec) => {
+                  const a = frec === rec;
+                  return <button key={rec} onClick={() => setFrec(rec)} style={{ flex: "1 1 0", minWidth: 52, padding: "6px 4px", border: `1.5px solid ${a ? "var(--text)" : "var(--border)"}`, borderRadius: 8, background: a ? "var(--text)" : "white", color: a ? "white" : "var(--muted)", fontSize: ".65rem", fontWeight: 700, cursor: "pointer" }}>{RECURRENCE_CONFIG[rec].short}</button>;
+                })}
+              </div>
+              <input value={fnote} onChange={(e) => setFnote(e.target.value)} placeholder="Note optionnelle…" style={{ ...inputStyle, marginBottom: 8, background: "white", fontSize: ".8rem" }} />
+              <WorkConflictAlert conflict={conflict} />
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={submit} disabled={!!conflict} style={{ ...primaryBtn, flex: 1, opacity: conflict ? 0.6 : 1, cursor: conflict ? "not-allowed" : "pointer" }}>{conflict ? "⚠️ Conflit" : "Ajouter ✓"}</button>
+                <button onClick={() => setShow(false)} style={{ ...ghostBtn, flex: 1 }}>Annuler</button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setShow(true)} style={{ ...primaryBtn, width: "100%", marginBottom: 12 }}>
+              <Icon name="plus" size={16} sw={2.5} /> Nouvelle tâche
+            </button>
+          )}
+
+          {/* Suggestions rapides */}
+          {!show && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: ".68rem", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 8 }}>Suggestions rapides</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {["Faire la vaisselle", "Passer l'aspirateur", "Sortir les poubelles", "Faire la lessive", "Préparer les repas", "Nettoyer la cuisine"].map((s) => (
+                  <button key={s} onClick={() => { setFname(s); setShow(true); }} style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 8, padding: "5px 10px", fontSize: ".72rem", fontWeight: 600, color: "var(--muted)", cursor: "pointer" }}>{s}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Liste des tâches */}
+          {filtered.length === 0
+            ? <Empty iconName="checkCircle" text="Aucune tâche ici !" />
+            : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {filtered.map((t) => (
+                  <FullTaskCard key={t.id} task={t} members={members} rooms={rooms} onToggle={toggleTask} onDelete={deleteTask} onEdit={setEditingTask} />
+                ))}
+              </div>
+            )
+          }
+        </div>
+      )}
+
+      {/* ── ONGLET RAPPELS ── */}
+      {activeTab === "reminders" && (
+        <div style={{ padding: "16px" }}>
+          {/* Bannière notifications */}
+          <div style={{ background: notifPerm === "granted" ? "#D1FAE5" : "var(--soft)", border: `1px solid ${notifPerm === "granted" ? "#6EE7B7" : "var(--border)"}`, borderRadius: 14, padding: "12px 14px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: notifPerm === "granted" ? "#A7F3D0" : "#EDE9FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Icon name="bell" size={17} color={notifPerm === "granted" ? "#059669" : "#7C3AED"} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: ".85rem" }}>
+                {notifPerm === "granted" ? "Notifications actives ✓" : "Notifications push"}
+              </div>
+              <div style={{ fontSize: ".68rem", color: "var(--muted)", marginTop: 1 }}>
+                {notifPerm === "granted"
+                  ? "Tâches avec heure et rappels vous notifieront"
+                  : notifPerm === "denied"
+                    ? "Bloquées — autorisez dans les réglages du navigateur"
+                    : "Activez pour être alerté des tâches et rappels"}
+              </div>
+            </div>
+            {notifPerm !== "granted" && notifPerm !== "denied" && (
+              <button onClick={requestNotifPerm} style={{ padding: "7px 14px", border: "none", borderRadius: 9, background: "#7C3AED", color: "white", fontSize: ".75rem", fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+                Activer
+              </button>
+            )}
+          </div>
+
+          {/* Formulaire nouveau rappel */}
+          <div style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 16, padding: 16, marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: ".8rem", marginBottom: 10, color: "var(--muted)" }}>Nouveau rappel</div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+              <input value={reEmojiVal} onChange={(e) => setReEmojiVal(e.target.value)} style={{ ...inputStyle, width: 56, textAlign: "center", fontSize: "1.2rem", background: "white" }} />
+              <input
+                value={rt}
+                onChange={(e) => setRt(e.target.value)}
+                placeholder="Titre du rappel…"
+                style={{ ...inputStyle, flex: 1, background: "white" }}
+                onKeyDown={(e) => { if (e.key === "Enter" && rt.trim()) submitReminder(); }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+              <select value={reDayVal} onChange={(e) => setReDayVal(e.target.value)} style={{ ...inputStyle, flex: 1, background: "white" }}>
+                {DAYS_F.map((d, i) => <option key={i} value={i}>{d}</option>)}
+              </select>
+              <input type="time" value={reTime} onChange={(e) => setReTime(e.target.value)} style={{ ...inputStyle, flex: 1, background: "white" }} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <input type="date" value={reDate} onChange={(e) => setReDate(e.target.value)} style={{ ...inputStyle, flex: 1, background: "white", fontSize: ".78rem" }} />
+              <span style={{ fontSize: ".68rem", color: "var(--muted2)", whiteSpace: "nowrap" }}>Date précise</span>
+            </div>
+            <button onClick={submitReminder} style={{ ...primaryBtn, width: "100%" }}>
+              <Icon name="plus" size={16} sw={2.2} /> Ajouter le rappel
+            </button>
+          </div>
+
+          {/* Liste des rappels groupés par jour */}
+          {reminders.length === 0 ? <Empty iconName="bell" text="Aucun rappel configuré" /> :
+            DAYS_F.map((d, i) => {
+              const dr = reminders.filter((r) => r.day === i as DayIndex);
+              if (dr.length === 0) return null;
+              return (
+                <div key={i} style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: ".68rem", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 8 }}>{d}</div>
+                  {dr.map((r) => (
+                    <div key={r.id} style={{ background: "#EDE9FE", borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
+                      <span style={{ fontSize: "1.3rem" }}>{r.emoji}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: ".875rem", color: "#4C3899" }}>{r.title}</div>
+                        <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
+                          {r.time && <span style={{ fontSize: ".7rem", color: "#7C5CD9" }}>{r.time}</span>}
+                          {r.date && <span style={{ fontSize: ".7rem", color: "#7C5CD9", fontWeight: 600 }}>📅 {r.date}</span>}
+                        </div>
+                      </div>
+                      <button onClick={() => deleteRem(r.id)} style={{ background: "none", border: "none", color: "#7C5CD9", cursor: "pointer", padding: 5, display: "flex", opacity: 0.6 }}>
+                        <Icon name="x" size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              );
+            })
+          }
+        </div>
+      )}
 
       {editingTask && (
         <EditTaskModal task={editingTask} members={members} rooms={rooms} onSave={updateTask} onClose={() => setEditingTask(null)} />
