@@ -11,6 +11,7 @@ import { EditTaskModal } from "../components/tasks/EditTaskModal";
 import { todayIdx, isWeekend, getWorkConflict } from "../lib/utils";
 import { DAYS_F, PRIORITY_CONFIG, RECURRENCE_CONFIG } from "../lib/constants";
 import { inputStyle, primaryBtn, ghostBtn } from "../styles";
+import { usePushSubscription } from "../hooks/usePushSubscription";
 
 export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTask, deleteTask, updateTask, addReminder, deleteRem }: ViewProps) {
   // ── Onglets ───────────────────────────────────────────────────────────────
@@ -58,6 +59,7 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
   const [reEmojiVal, setReEmojiVal] = useState("🔔");
   const [reDate,     setReDate]     = useState("");
 
+  const push = usePushSubscription();
   const [notifPerm, setNotifPerm] = useState<NotificationPermission>(
     typeof Notification !== "undefined" ? Notification.permission : "default"
   );
@@ -137,11 +139,30 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
               </button>
             </div>
           )}
-          {notifPerm === "granted" && (
-            <div style={{ background: "var(--green-bg)", border: "1px solid var(--green)", borderRadius: 12, padding: "8px 12px", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
-              <Icon name="bell" size={14} color="var(--green)" />
+          {notifPerm === "granted" && push.state !== "subscribed" && push.state !== "unsupported" && (
+            <div style={{ background: "var(--violet-bg)", border: "1px solid var(--violet)", borderRadius: 12, padding: "10px 12px", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+              <Icon name="bell" size={14} color="var(--violet)" />
               <span style={{ flex: 1, fontSize: ".72rem", color: "var(--text)", fontWeight: 600 }}>
-                Notifications actives ({tasks.filter((t) => t.dueTime).length} tâche{tasks.filter((t) => t.dueTime).length !== 1 ? "s" : ""} avec heure)
+                Activer notifs persistantes (marche app fermée)
+              </span>
+              <button
+                onClick={async () => {
+                  try { await push.subscribe(); }
+                  catch (e) { alert("Subscribe failed: " + String(e)); }
+                }}
+                style={{ padding: "5px 11px", border: "none", borderRadius: 8, background: "var(--violet)", color: "white", fontSize: ".68rem", fontWeight: 800, cursor: "pointer", flexShrink: 0 }}
+              >
+                Activer
+              </button>
+            </div>
+          )}
+          {notifPerm === "granted" && (
+            <div style={{ background: push.state === "subscribed" ? "var(--green-bg)" : "var(--soft)", border: `1px solid ${push.state === "subscribed" ? "var(--green)" : "var(--border)"}`, borderRadius: 12, padding: "8px 12px", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+              <Icon name="bell" size={14} color={push.state === "subscribed" ? "var(--green)" : "var(--muted)"} />
+              <span style={{ flex: 1, fontSize: ".72rem", color: "var(--text)", fontWeight: 600 }}>
+                {push.state === "subscribed"
+                  ? `Push actif · ${tasks.filter((t) => t.dueTime).length} tâche${tasks.filter((t) => t.dueTime).length !== 1 ? "s" : ""} avec heure`
+                  : `Local · ${tasks.filter((t) => t.dueTime).length} tâche${tasks.filter((t) => t.dueTime).length !== 1 ? "s" : ""} avec heure`}
               </span>
               <button
                 onClick={async () => {
@@ -154,7 +175,7 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
                     new Notification("Test notif 🔔", opts);
                   } catch (e) { alert("Notif failed: " + String(e)); }
                 }}
-                style={{ padding: "4px 10px", border: "1px solid var(--green)", borderRadius: 8, background: "transparent", color: "var(--green)", fontSize: ".68rem", fontWeight: 800, cursor: "pointer", flexShrink: 0 }}
+                style={{ padding: "4px 10px", border: `1px solid ${push.state === "subscribed" ? "var(--green)" : "var(--border)"}`, borderRadius: 8, background: "transparent", color: push.state === "subscribed" ? "var(--green)" : "var(--muted)", fontSize: ".68rem", fontWeight: 800, cursor: "pointer", flexShrink: 0 }}
               >
                 Tester
               </button>
