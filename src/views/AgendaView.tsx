@@ -174,17 +174,17 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
       </div>
 
       {/* Calendrier card flottante — chevauchement avec le gradient */}
-      <div style={{ padding: "0 16px", marginTop: -12 }}>
-        <div style={{ background: "var(--surface)", border: "1px solid var(--card-border)", boxShadow: "0 6px 24px rgba(0,0,0,.08)", borderRadius: 24, padding: "16px 14px 12px", backdropFilter: "var(--card-blur, none)", WebkitBackdropFilter: "var(--card-blur, none)" }}>
+      <div style={{ padding: "0 16px", marginTop: -14 }}>
+        <div style={{ background: "var(--surface)", border: "1px solid var(--card-border)", boxShadow: "0 8px 28px rgba(0,0,0,.08)", borderRadius: 26, padding: "20px 16px 18px", backdropFilter: "var(--card-blur, none)", WebkitBackdropFilter: "var(--card-blur, none)" }}>
         {/* En-têtes jours */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2, marginBottom: 6 }}>
-          {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
-            <div key={i} style={{ textAlign: "center", fontSize: ".6rem", fontWeight: 800, color: i >= 5 ? "var(--warn)" : "var(--muted2)", padding: "2px 0", textTransform: "uppercase", letterSpacing: ".3px" }}>{d}</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 12 }}>
+          {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((d, i) => (
+            <div key={i} style={{ textAlign: "center", fontSize: ".62rem", fontWeight: 800, color: i >= 5 ? "var(--warn)" : "var(--muted2)", padding: "4px 0", textTransform: "uppercase", letterSpacing: ".4px" }}>{d}</div>
           ))}
         </div>
 
         {/* Grille calendrier */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 3, marginBottom: 0 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 5, marginBottom: 0 }}>
           {Array.from({ length: firstMon }).map((_, i) => <div key={"e" + i} />)}
           {Array.from({ length: daysInMonth }).map((_, i) => {
             const dom = i + 1;
@@ -202,10 +202,10 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
               <button
                 key={dom}
                 onClick={() => { setDetailDay(isSel ? null : dom); setExpandedStat(null); }}
-                style={{ border: `1.5px solid ${isSel ? "var(--text)" : isToday ? "var(--accent)" : "transparent"}`, borderRadius: 10, padding: "5px 2px 4px", background: isSel ? "var(--text)" : isToday ? "var(--accent-bg)" : "transparent", cursor: "pointer", textAlign: "center", transition: "all .15s", position: "relative" }}
+                style={{ border: `1.5px solid ${isSel ? "var(--text)" : isToday ? "var(--accent)" : "transparent"}`, borderRadius: 12, padding: "10px 2px 9px", background: isSel ? "var(--text)" : isToday ? "var(--accent-bg)" : "transparent", cursor: "pointer", textAlign: "center", transition: "all .15s", position: "relative", minHeight: 44 }}
               >
-                <div style={{ fontSize: ".88rem", fontWeight: isToday || isSel ? 800 : 500, color: isSel ? "var(--bg)" : isToday ? "var(--accent)" : isWe ? "var(--warn)" : "var(--text)", lineHeight: 1.2 }}>{dom}</div>
-                <div style={{ display: "flex", justifyContent: "center", gap: 2, marginTop: 3, minHeight: 5 }}>
+                <div style={{ fontSize: "1rem", fontWeight: isToday || isSel ? 800 : 500, color: isSel ? "var(--bg)" : isToday ? "var(--accent)" : isWe ? "var(--warn)" : "var(--text)", lineHeight: 1.1 }}>{dom}</div>
+                <div style={{ display: "flex", justifyContent: "center", gap: 3, marginTop: 5, minHeight: 5 }}>
                   {dtl.length === 0 ? null : doneAll
                     ? <div style={{ width: 5, height: 5, borderRadius: "50%", background: isSel ? "var(--bg)" : "var(--green)" }} />
                     : dotColors.length > 0
@@ -352,7 +352,7 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
         )}
 
         {/* Stats du mois — cliquables, s'expandent en bas */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 0 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginTop: 18, marginBottom: 0 }}>
           {([
             { key: "all",    label: "Ce mois",  val: tasks.length,       color: "var(--accent)" },
             { key: "done",   label: "Faites",   val: doneTasks.length,   color: "var(--green)"  },
@@ -363,10 +363,10 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
               <div
                 key={key}
                 onClick={() => setExpandedStat(isOpen ? null : key)}
-                style={{ background: isOpen ? "var(--text)" : "var(--soft)", border: `1px solid ${isOpen ? "var(--text)" : "var(--border)"}`, borderRadius: isOpen ? "12px 12px 0 0" : 12, padding: "10px", textAlign: "center", cursor: val > 0 ? "pointer" : "default", transition: "all .2s", userSelect: "none" }}
+                style={{ background: isOpen ? "var(--text)" : "var(--surface)", border: `1px solid ${isOpen ? "var(--text)" : "var(--border)"}`, borderRadius: isOpen ? "16px 16px 0 0" : 16, padding: "16px 10px", textAlign: "center", cursor: val > 0 ? "pointer" : "default", transition: "all .2s", userSelect: "none", boxShadow: isOpen ? "none" : "0 2px 8px rgba(0,0,0,.04)" }}
               >
-                <div style={{ fontWeight: 800, fontSize: "1.4rem", color: isOpen ? "var(--bg)" : color, lineHeight: 1 }}>{val}</div>
-                <div style={{ fontSize: ".62rem", color: isOpen ? "var(--muted2)" : "var(--muted)", marginTop: 3, fontWeight: 600 }}>{label}</div>
+                <div style={{ fontWeight: 900, fontSize: "1.7rem", color: isOpen ? "var(--bg)" : color, lineHeight: 1, letterSpacing: "-.5px" }}>{val}</div>
+                <div style={{ fontSize: ".68rem", color: isOpen ? "var(--muted2)" : "var(--muted)", marginTop: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".3px" }}>{label}</div>
               </div>
             );
           })}
