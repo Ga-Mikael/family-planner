@@ -134,6 +134,38 @@ input, select, textarea, button { font-family: var(--font-body); }
   background: transparent;
 }
 
+.fp-planning-header {
+  position: relative;
+  padding: 52px 18px 26px;
+  transition: background .5s;
+  overflow: hidden;
+}
+:root .fp-planning-header {
+  background: linear-gradient(155deg, #DDF4FF 0%, #EDE8FF 100%);
+}
+:root .fp-planning-header::before {
+  content: "";
+  position: absolute;
+  top: -40px; right: -30px;
+  width: 180px; height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(78,205,196,.3) 0%, transparent 70%);
+  pointer-events: none;
+}
+:root .fp-planning-header::after {
+  content: "";
+  position: absolute;
+  bottom: -50px; left: -40px;
+  width: 160px; height: 160px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(167,139,250,.3) 0%, transparent 70%);
+  pointer-events: none;
+}
+[data-theme="dark"] .fp-planning-header { background: transparent; }
+[data-theme="dark"] .fp-planning-header::before,
+[data-theme="dark"] .fp-planning-header::after { display: none; }
+.fp-planning-header > * { position: relative; z-index: 1; }
+
 .fp-agenda-header {
   position: relative;
   padding: 52px 18px 26px;
