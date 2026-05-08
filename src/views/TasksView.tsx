@@ -65,7 +65,16 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
     if (typeof Notification === "undefined") return;
     const perm = await Notification.requestPermission();
     setNotifPerm(perm);
-    if (perm === "granted") new Notification("Family Planner 🏠", { body: "Notifications activées pour tâches et rappels !" });
+    if (perm === "granted") {
+      const opts = { body: "Notifications activées pour tâches et rappels !", icon: "/icons/icon-192.png", badge: "/icons/icon-192.png" };
+      try {
+        if ("serviceWorker" in navigator) {
+          const reg = await navigator.serviceWorker.ready;
+          if (reg) { reg.showNotification("Notre Foyer 🏠", opts); return; }
+        }
+        new Notification("Notre Foyer 🏠", opts);
+      } catch { /* fail silently */ }
+    }
   };
 
   const submitReminder = () => {
