@@ -22,6 +22,7 @@ export function FamilyView({
   addTask, toggleTask, deleteTask, updateTask,
   addMember, deleteMember, addRoom, deleteRoom,
   onSignOut, userEmail,
+  isDark, toggleTheme,
 }: FamilyViewProps) {
   const [section,        setSection]        = useState<"foyer" | "cuisine">("foyer");
   const [selRoom,        setSelRoom]        = useState<string | null>(null);
@@ -80,7 +81,7 @@ export function FamilyView({
       {/* Onglets section */}
       <div style={{ display: "flex", borderBottom: "1px solid var(--border)", padding: "0 16px" }}>
         {([["foyer", "🏠 Foyer"], ["cuisine", "🍽️ Cuisine"]] as const).map(([s, l]) => (
-          <button key={s} onClick={() => { setSection(s); setSelRoom(null); }} style={{ flex: 1, border: "none", background: "none", cursor: "pointer", padding: "10px 0", fontSize: ".78rem", fontWeight: 700, color: section === s ? "var(--text)" : "var(--muted2)", borderBottom: `2.5px solid ${section === s ? "var(--text)" : "transparent"}`, marginBottom: -1, transition: "all .2s" }}>{l}</button>
+          <button key={s} onClick={() => { setSection(s); setSelRoom(null); }} style={{ flex: 1, border: "none", background: "none", cursor: "pointer", padding: "10px 0", fontSize: ".78rem", fontWeight: 700, color: section === s ? "var(--accent)" : "var(--muted2)", borderBottom: `2.5px solid ${section === s ? "var(--accent)" : "transparent"}`, marginBottom: -1, transition: "all .2s" }}>{l}</button>
         ))}
       </div>
 
@@ -226,8 +227,47 @@ export function FamilyView({
               )}
             </div>
 
+            {/* Toggle thème */}
+            <div style={{
+              marginTop: 20,
+              background: "var(--soft)", border: "1px solid var(--border)",
+              borderRadius: 14, padding: "12px 14px", marginBottom: 10,
+              display: "flex", alignItems: "center", gap: 10,
+            }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: "var(--accent-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Icon name="moon" size={16} color="var(--accent)" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: ".82rem" }}>Mode sombre</div>
+                <div style={{ fontSize: ".68rem", color: "var(--muted)", marginTop: 1 }}>
+                  {isDark ? "Activé — verre / nuit" : "Désactivé — pastel / jour"}
+                </div>
+              </div>
+              {/* Toggle pill */}
+              <div
+                onClick={toggleTheme}
+                style={{
+                  width: 48, height: 28, borderRadius: 28, cursor: "pointer",
+                  background: isDark ? "var(--accent)" : "var(--border)",
+                  position: "relative", transition: "background .3s", flexShrink: 0,
+                }}
+              >
+                <div style={{
+                  position: "absolute", top: 3,
+                  left: isDark ? 23 : 3,
+                  width: 22, height: 22, borderRadius: "50%", background: "white",
+                  boxShadow: "0 1px 4px rgba(0,0,0,.2)",
+                  transition: "left .3s cubic-bezier(.4,0,.2,1)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 12,
+                }}>
+                  {isDark ? "🌙" : "☀️"}
+                </div>
+              </div>
+            </div>
+
             {/* Compte */}
-            <div style={{ marginTop: 20, background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 14, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 14, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ width: 34, height: 34, borderRadius: 10, background: "#EEE", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Icon name="mail" size={16} color="var(--muted)" />
               </div>

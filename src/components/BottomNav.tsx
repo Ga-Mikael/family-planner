@@ -20,8 +20,13 @@ export function BottomNav({ tab, setTab, weekendWarn }: BottomNavProps) {
     <div style={{
       position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)",
       width: "100%", maxWidth: 430,
-      background: "white", borderTop: "1px solid var(--border)",
-      display: "flex", zIndex: 100, padding: "7px 0 10px",
+      background: "var(--nav-bg)",
+      borderTop: "1px solid var(--nav-border)",
+      display: "flex", zIndex: 100,
+      padding: "6px 4px 14px",
+      backdropFilter: "blur(24px)",
+      WebkitBackdropFilter: "blur(24px)",
+      transition: "background .4s, border-color .4s",
     }}>
       {NAV_ITEMS.map((item) => {
         const isActive = tab === item.id;
@@ -32,29 +37,40 @@ export function BottomNav({ tab, setTab, weekendWarn }: BottomNavProps) {
             style={{
               flex: 1, border: "none", background: "none", cursor: "pointer",
               display: "flex", flexDirection: "column", alignItems: "center",
-              gap: 3, padding: "3px 0",
-              color:      isActive ? "var(--text)" : "var(--muted2)",
+              gap: 3, padding: "2px 0",
               transition: "color .2s",
-              position:   "relative",
+              position: "relative",
             }}
           >
-            <Icon name={item.icon} size={21} sw={isActive ? 2.2 : 1.7} />
-            <span style={{ fontSize: ".58rem", fontWeight: isActive ? 700 : 500 }}>{item.label}</span>
+            {/* Active bubble */}
+            <div style={{
+              width: 42, height: 32, borderRadius: 11,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: isActive ? "var(--accent-bg)" : "transparent",
+              transition: "background .25s",
+            }}>
+              <Icon
+                name={item.icon}
+                size={20}
+                sw={isActive ? 2.2 : 1.7}
+                color={isActive ? "var(--accent)" : "var(--muted2)"}
+              />
+            </div>
+            <span style={{
+              fontSize: ".58rem",
+              fontWeight: isActive ? 800 : 600,
+              color: isActive ? "var(--accent)" : "var(--muted2)",
+              transition: "color .2s",
+            }}>
+              {item.label}
+            </span>
 
-            {/* Point d'alerte weekend */}
+            {/* Weekend warning dot */}
             {item.id === "schedule" && weekendWarn && (
               <span style={{
                 position: "absolute", top: 2, right: "18%",
-                width: 7, height: 7, background: "#F59E0B",
+                width: 7, height: 7, background: "var(--warn)",
                 borderRadius: "50%", animation: "pulse 1.5s infinite",
-              }} />
-            )}
-
-            {/* Indicateur onglet actif */}
-            {isActive && (
-              <div style={{
-                position: "absolute", top: 0, left: "25%", right: "25%",
-                height: 2, background: "var(--text)", borderRadius: 99,
               }} />
             )}
           </button>
