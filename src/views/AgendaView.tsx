@@ -1,10 +1,10 @@
-import { useState } from "react";
-import type { ViewProps, Task, DayIndex, Priority } from "../types";
+import { useRef, useState } from "react";
+import type { ViewProps, Task, DayIndex, Priority, Recurrence } from "../types";
 import { Icon } from "../components/ui/Icon";
 import { MemberToggleBar } from "../components/ui/MemberToggleBar";
 import { EditTaskModal } from "../components/tasks/EditTaskModal";
 import { parseMemberIds, isTaskDoneOn, getFrenchHolidays, getVacation, dateKey, toDateStr } from "../lib/utils";
-import { DAYS_F, MONTHS, PRIORITY_CONFIG } from "../lib/constants";
+import { DAYS_F, MONTHS, PRIORITY_CONFIG, RECURRENCE_CONFIG } from "../lib/constants";
 import { inputStyle, primaryBtn, navBtn } from "../styles";
 
 export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleTask }: ViewProps) {
@@ -15,8 +15,32 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
   const [aName,       setAName]       = useState("");
   const [aMembers,    setAMembers]    = useState<string[]>([]);
   const [aPrio,       setAPrio]       = useState<Priority>("med");
+  const [aRec,        setARec]        = useState<Recurrence>("once");
   const [aTime,       setATime]       = useState("");
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  // Popup compteur de tâches
+  const [statsPopup, setStatsPopup] = useState<{ title: string; items: Task[] } | null>(null);
+
+  // Swipe par tâche dans le panneau détail
+  const swipeStartX  = useRef<Record<string, number>>({});
+  const [swipeMap, setSwipeMap] = useState<Record<string, number>>({});
+
+  const onTaskTouchStart = (id: string, e: React.TouchEvent) => {
+    swipeStartX.current[id] = e.touches[0].clientX;
+  };
+  const onTaskTouchMove = (id: string, e: React.TouchEvent) => {
+    const start = swipeStartX.current[id];
+    if (start === undefined) return;
+    const delta = e.touches[0].clientX - start;
+    if (delta > 0) setSwipeMap((p) => ({ ...p, [id]: Math.min(delta, 85) }));
+  };
+  const onTaskTouchEnd = (id: string) => {
+    const offset = swipeMap[id] ?? 0;
+    if (offset > 60) toggleTask(id, selDateStr);
+    setSwipeMap((p) => ({ ...p, [id]: 0 }));
+    delete swipeStartX.current[id];
+  };
 
   const year = viewDate.getFullYear(), month = viewDate.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -30,9 +54,10 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
     return tasks.filter((t) => {
       if (t.recurrence !== "once") return t.day === dow;
       if (t.dueDate) return t.dueDate === dateStr;
-      return t.day === dow; // anciennes tâches sans dueDate
+      return t.day === dow;
     });
   };
+
   const selDow     = detailDay ? ((new Date(year, month, detailDay).getDay() === 0 ? 6 : new Date(year, month, detailDay).getDay() - 1) as DayIndex) : null;
   const selTasks   = detailDay !== null && selDow !== null ? tasksByDom(detailDay) : [];
   const selDateStr = detailDay !== null ? toDateStr(new Date(year, month, detailDay)) : "";
@@ -41,12 +66,16 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
     if (!aName.trim() || selDow === null || detailDay === null) return;
     addTask({
       id: "t" + Date.now(), name: aName.trim(), memberId: aMembers.join(","),
-      roomId: "r-general", day: selDow, priority: aPrio, recurrence: "once",
+      roomId: "r-general", day: selDow, priority: aPrio, recurrence: aRec,
       done: false, dueTime: aTime || undefined,
-      dueDate: toDateStr(new Date(year, month, detailDay)), // date précise
+      dueDate: aRec === "once" ? toDateStr(new Date(year, month, detailDay)) : undefined,
     });
-    setAName(""); setAMembers([]); setATime(""); setShowAddForm(false);
+    setAName(""); setAMembers([]); setATime(""); setARec("once"); setShowAddForm(false);
   };
+
+  // Stats pour la popup
+  const doneTasks    = tasks.filter((t) => t.recurrence === "once" ? t.done : (t.doneDates?.length ?? 0) > 0);
+  const urgentTasks  = tasks.filter((t) => t.priority === "high" && !t.done && !(t.doneDates?.length));
 
   return (
     <div style={{ animation: "fadeUp .35s ease" }}>
@@ -119,11 +148,13 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <div>
                 <div style={{ fontWeight: 800, fontSize: ".95rem" }}>{DAYS_F[selDow]} {detailDay} {MONTHS[month]}</div>
-                <div style={{ fontSize: ".68rem", color: "var(--muted)", marginTop: 1 }}>{selTasks.filter((t) => isTaskDoneOn(t, selDateStr)).length}/{selTasks.length} tâches</div>
+                <div style={{ fontSize: ".68rem", color: "var(--muted)", marginTop: 1 }}>
+                  {selTasks.filter((t) => isTaskDoneOn(t, selDateStr)).length}/{selTasks.length} tâches
+                </div>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
                 <button
-                  onClick={() => { setShowAddForm((f) => !f); setAName(""); setAMembers([]); setAPrio("med"); setATime(""); }}
+                  onClick={() => { setShowAddForm((f) => !f); setAName(""); setAMembers([]); setAPrio("med"); setARec("once"); setATime(""); }}
                   style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid var(--border)", background: showAddForm ? "var(--text)" : "white", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: showAddForm ? "white" : "var(--muted)" }}
                 >
                   <Icon name="plus" size={14} sw={2.5} />
@@ -169,45 +200,78 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
                     ))}
                   </select>
                 </div>
+                {/* Sélecteur de récurrence avec option annuelle */}
+                <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                  {(["once", "daily", "weekly", "monthly", "annual"] as Recurrence[]).map((rec) => {
+                    const active = aRec === rec;
+                    return (
+                      <button
+                        key={rec}
+                        onClick={() => setARec(rec)}
+                        style={{ flex: "1 1 0", minWidth: 52, padding: "6px 4px", border: `1.5px solid ${active ? "var(--text)" : "var(--border)"}`, borderRadius: 8, background: active ? "var(--text)" : "var(--soft)", color: active ? "white" : "var(--muted)", fontSize: ".63rem", fontWeight: 700, cursor: "pointer" }}
+                      >
+                        {RECURRENCE_CONFIG[rec].short}
+                      </button>
+                    );
+                  })}
+                </div>
                 <button onClick={addTaskForDay} style={{ ...primaryBtn, fontSize: ".82rem", padding: "9px" }}>Ajouter la tâche</button>
               </div>
             )}
 
-            {/* Liste des tâches du jour */}
+            {/* Liste des tâches du jour avec swipe */}
             {selTasks.length === 0 && !showAddForm
               ? <div style={{ textAlign: "center", padding: "16px 0", color: "var(--muted2)", fontSize: ".8rem", fontStyle: "italic" }}>Aucune tâche ce jour 😌</div>
               : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {selTasks.map((t) => {
                     const tMids = parseMemberIds(t.memberId);
-                    const tMs = tMids.map((id) => members.find((x) => x.id === id)).filter(Boolean) as typeof members;
-                    const tM = tMs[0], r = rooms.find((x) => x.id === t.roomId);
-                    const col = tM?.color || r?.color || "#6B7280", pc = PRIORITY_CONFIG[t.priority];
-                    const taskDone = isTaskDoneOn(t, selDateStr);
+                    const tMs   = tMids.map((id) => members.find((x) => x.id === id)).filter(Boolean) as typeof members;
+                    const tM    = tMs[0], r = rooms.find((x) => x.id === t.roomId);
+                    const col   = tM?.color || r?.color || "#6B7280", pc = PRIORITY_CONFIG[t.priority];
+                    const taskDone   = isTaskDoneOn(t, selDateStr);
+                    const swipeOff   = swipeMap[t.id] ?? 0;
                     return (
-                      <div key={t.id} style={{ background: "white", borderRadius: 10, padding: "9px 12px", display: "flex", alignItems: "center", gap: 9, borderLeft: `3px solid ${col}`, opacity: taskDone ? 0.55 : 1 }}>
-                        <div
-                          onClick={() => toggleTask(t.id, selDateStr)}
-                          style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${taskDone ? col : col + "60"}`, background: taskDone ? col : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", transition: "all .2s" }}
-                        >
-                          {taskDone && <Icon name="check" size={9} color="white" sw={3} />}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: ".8rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: taskDone ? "line-through" : "none", color: col, opacity: taskDone ? 0.6 : 1 }}>{t.name}</div>
-                          <div style={{ display: "flex", gap: 5, alignItems: "center", marginTop: 1 }}>
-                            <span style={{ fontSize: ".58rem", fontWeight: 700, padding: "1px 5px", borderRadius: 99, background: pc.bg, color: pc.color }}>{pc.label}</span>
-                            {r && <span style={{ fontSize: ".58rem", color: "var(--muted2)" }}>{r.name}</span>}
-                            {t.dueTime && <span style={{ fontSize: ".58rem", color: "var(--muted2)" }}>{t.dueTime}</span>}
-                          </div>
-                        </div>
-                        {tMs.length > 0 && (
-                          <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
-                            {tMs.map((mx) => <span key={mx.id} style={{ fontSize: ".95rem" }}>{mx.emoji}</span>)}
+                      <div
+                        key={t.id}
+                        style={{ position: "relative", overflow: "hidden", borderRadius: 10 }}
+                        onTouchStart={(e) => onTaskTouchStart(t.id, e)}
+                        onTouchMove={(e)  => onTaskTouchMove(t.id, e)}
+                        onTouchEnd={()    => onTaskTouchEnd(t.id)}
+                      >
+                        {/* Fond vert swipe */}
+                        {swipeOff > 0 && (
+                          <div style={{ position: "absolute", inset: 0, background: "#D1FAE5", display: "flex", alignItems: "center", paddingLeft: 12, opacity: Math.min(swipeOff / 60, 1), pointerEvents: "none", borderRadius: 10 }}>
+                            <Icon name="check" size={16} color="#059669" sw={2.5} />
                           </div>
                         )}
-                        <button onClick={() => setEditingTask(t)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted2)", padding: 3, display: "flex", flexShrink: 0 }}>
-                          <Icon name="edit" size={12} sw={1.8} />
-                        </button>
+                        <div
+                          style={{ background: "white", borderRadius: 10, padding: "9px 12px", display: "flex", alignItems: "center", gap: 9, borderLeft: `3px solid ${col}`, opacity: taskDone ? 0.55 : 1, transform: `translateX(${swipeOff}px)`, transition: swipeOff === 0 ? "transform .2s ease" : "none" }}
+                        >
+                          <div
+                            onClick={() => toggleTask(t.id, selDateStr)}
+                            style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${taskDone ? col : col + "60"}`, background: taskDone ? col : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", transition: "all .2s" }}
+                          >
+                            {taskDone && <Icon name="check" size={9} color="white" sw={3} />}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, fontSize: ".8rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: taskDone ? "line-through" : "none", color: col, opacity: taskDone ? 0.6 : 1 }}>{t.name}</div>
+                            <div style={{ display: "flex", gap: 5, alignItems: "center", marginTop: 1 }}>
+                              <span style={{ fontSize: ".58rem", fontWeight: 700, padding: "1px 5px", borderRadius: 99, background: pc.bg, color: pc.color }}>{pc.label}</span>
+                              {r && <span style={{ fontSize: ".58rem", color: "var(--muted2)" }}>{r.name}</span>}
+                              {t.dueTime && <span style={{ fontSize: ".58rem", color: "var(--muted2)" }}>{t.dueTime}</span>}
+                              {t.recurrence !== "once" && <span style={{ fontSize: ".58rem", color: col, opacity: .6, fontWeight: 700 }}>{RECURRENCE_CONFIG[t.recurrence].short}</span>}
+                            </div>
+                          </div>
+                          {tMs.length > 0 && (
+                            <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
+                              {tMs.map((mx) => <span key={mx.id} style={{ fontSize: ".95rem" }}>{mx.emoji}</span>)}
+                            </div>
+                          )}
+                          <button onClick={() => setEditingTask(t)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted2)", padding: 3, display: "flex", flexShrink: 0 }}>
+                            <Icon name="edit" size={12} sw={1.8} />
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -217,20 +281,67 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
           </div>
         )}
 
-        {/* Stats du mois */}
+        {/* Stats du mois — cliquables */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 20 }}>
           {[
-            { label: "Ce mois", val: tasks.length, color: "var(--accent)" },
-            { label: "Faites",  val: tasks.filter((t) => t.recurrence === "once" ? t.done : (t.doneDates?.length ?? 0) > 0).length, color: "var(--green)" },
-            { label: "Urgentes", val: tasks.filter((t) => t.priority === "high" && !t.done && !(t.doneDates?.length)).length, color: "var(--danger)" },
-          ].map(({ label, val, color }) => (
-            <div key={label} style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 12, padding: "10px", textAlign: "center" }}>
+            { label: "Ce mois",  val: tasks.length,        color: "var(--accent)",  items: tasks,        title: "Toutes les tâches du mois" },
+            { label: "Faites",   val: doneTasks.length,    color: "var(--green)",   items: doneTasks,    title: "Tâches faites" },
+            { label: "Urgentes", val: urgentTasks.length,  color: "var(--danger)",  items: urgentTasks,  title: "Tâches urgentes restantes" },
+          ].map(({ label, val, color, items, title }) => (
+            <div
+              key={label}
+              onClick={() => items.length > 0 && setStatsPopup({ title, items })}
+              style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 12, padding: "10px", textAlign: "center", cursor: items.length > 0 ? "pointer" : "default", transition: "opacity .15s", userSelect: "none" }}
+            >
               <div style={{ fontWeight: 800, fontSize: "1.4rem", color, lineHeight: 1 }}>{val}</div>
               <div style={{ fontSize: ".62rem", color: "var(--muted)", marginTop: 3, fontWeight: 600 }}>{label}</div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* Popup liste de tâches (compteurs) */}
+      {statsPopup && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", zIndex: 1000, display: "flex", alignItems: "flex-end" }}
+          onClick={() => setStatsPopup(null)}
+        >
+          <div
+            style={{ width: "100%", background: "var(--bg)", borderRadius: "20px 20px 0 0", padding: "20px 16px 40px", maxHeight: "75vh", overflowY: "auto", animation: "fadeUp .2s ease" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <h3 style={{ fontWeight: 800, fontSize: ".95rem" }}>{statsPopup.title} ({statsPopup.items.length})</h3>
+              <button onClick={() => setStatsPopup(null)} style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid var(--border)", background: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Icon name="x" size={13} />
+              </button>
+            </div>
+            {statsPopup.items.map((t) => {
+              const m   = members.find((x) => t.memberId.split(",").includes(x.id));
+              const r   = rooms.find((x) => x.id === t.roomId);
+              const col = m?.color || r?.color || "#6B7280";
+              const pc  = PRIORITY_CONFIG[t.priority];
+              const isDone = t.recurrence === "once" ? t.done : (t.doneDates?.length ?? 0) > 0;
+              return (
+                <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--soft)", borderRadius: 12, marginBottom: 8, borderLeft: `3px solid ${col}`, opacity: isDone ? 0.5 : 1 }}>
+                  <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${isDone ? col : col + "50"}`, background: isDone ? col : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    {isDone && <Icon name="check" size={10} color="white" sw={3} />}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: ".85rem", color: col, textDecoration: isDone ? "line-through" : "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</div>
+                    <div style={{ display: "flex", gap: 5, marginTop: 2 }}>
+                      <span style={{ fontSize: ".6rem", fontWeight: 700, padding: "1px 5px", borderRadius: 99, background: pc.bg, color: pc.color }}>{pc.label}</span>
+                      {r && <span style={{ fontSize: ".6rem", color: "var(--muted2)" }}>{r.name}</span>}
+                      <span style={{ fontSize: ".6rem", color: col, opacity: .7, fontWeight: 600 }}>{RECURRENCE_CONFIG[t.recurrence].short}</span>
+                    </div>
+                  </div>
+                  {m && <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>{m.emoji}</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {editingTask && (
         <EditTaskModal task={editingTask} members={members} rooms={rooms} onSave={updateTask} onClose={() => setEditingTask(null)} />
