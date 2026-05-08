@@ -24,7 +24,7 @@ export function FullTaskCard({ task, members, rooms, onToggle, onDelete, onEdit 
 
   return (
     <div style={{
-      background: "var(--surface)", borderRadius: 13, padding: "11px 13px",
+      background: "var(--surface)", borderRadius: 20, padding: "12px 14px",
       marginBottom: 8, animation: "fadeUp .2s ease",
       border: `1px solid var(--card-border)`, boxShadow: "var(--card-shadow)",
       borderLeft: `3px solid ${color}`,
@@ -35,8 +35,8 @@ export function FullTaskCard({ task, members, rooms, onToggle, onDelete, onEdit 
         <div
           onClick={() => onToggle(task.id)}
           style={{
-            width: 24, height: 24, borderRadius: "50%",
-            border: `2.5px solid ${task.done ? color : color + "70"}`,
+            width: 24, height: 24, borderRadius: 8,
+            border: `2px solid ${task.done ? color : "var(--border)"}`,
             background: task.done ? color : "transparent",
             display: "flex", alignItems: "center", justifyContent: "center",
             flexShrink: 0, cursor: "pointer", transition: "all .2s",
