@@ -105,34 +105,86 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
       onTouchStart={onMonthTouchStart}
       onTouchEnd={onMonthTouchEnd}
     >
-      {/* Header */}
-      <div style={{ padding: "16px 20px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--text)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Icon name="calendar" size={18} color="white" sw={2} />
+      {/* Header gradient */}
+      <div className="fp-agenda-header">
+        {/* Row: nav + month title */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 14 }}>
+          <button
+            aria-label="Mois précédent"
+            onClick={() => { setViewDate(new Date(year, month - 1, 1)); setDetailDay(null); }}
+            style={{ ...navBtn, width: 36, height: 36, borderRadius: 99, background: "rgba(255,255,255,.6)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }}
+          >
+            <Icon name="chevronLeft" size={16} />
+          </button>
+
+          <div style={{ textAlign: "center", flex: 1 }}>
+            {/* Today chip — clickable, jumps to today */}
+            {isCurrentMonth ? (
+              <button
+                aria-label="Aller à aujourd'hui"
+                onClick={() => { setViewDate(new Date(today.getFullYear(), today.getMonth(), 1)); setDetailDay(today.getDate()); }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "var(--accent-bg)", border: "1px solid var(--accent)", borderRadius: 99, padding: "3px 10px", marginBottom: 7, cursor: "pointer" }}
+              >
+                <span aria-hidden="true" style={{ fontSize: ".7rem", lineHeight: 1 }}>✨</span>
+                <span style={{ fontSize: ".62rem", fontWeight: 800, color: "var(--accent)", textTransform: "uppercase", letterSpacing: ".5px" }}>
+                  Aujourd'hui · {DAYS_F[(today.getDay() === 0 ? 6 : today.getDay() - 1) as DayIndex].slice(0, 3)}. {today.getDate()}
+                </span>
+              </button>
+            ) : (
+              <button
+                aria-label="Revenir au mois courant"
+                onClick={() => { setViewDate(new Date(today.getFullYear(), today.getMonth(), 1)); setDetailDay(today.getDate()); }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,.55)", border: "1px solid var(--border)", borderRadius: 99, padding: "3px 10px", marginBottom: 7, cursor: "pointer" }}
+              >
+                <Icon name="chevronLeft" size={11} color="var(--muted)" />
+                <span style={{ fontSize: ".62rem", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".5px" }}>
+                  Retour à aujourd'hui
+                </span>
+              </button>
+            )}
+            <h1 style={{ fontWeight: 900, fontSize: "1.65rem", lineHeight: 1, color: "var(--text)", letterSpacing: "-.5px" }}>
+              {MONTHS[month]}{" "}
+              <span style={{ color: "var(--muted2)", fontWeight: 400, fontSize: "1.3rem" }}>{year}</span>
+            </h1>
           </div>
-          <div>
-            <h1 style={{ fontWeight: 800, fontSize: "1.2rem", lineHeight: 1 }}>{MONTHS[month]} {year}</h1>
-            <div style={{ fontSize: ".65rem", color: "var(--muted)", marginTop: 2 }}>{daysInMonth} jours · {tasks.length} tâches</div>
-          </div>
+
+          <button
+            aria-label="Mois suivant"
+            onClick={() => { setViewDate(new Date(year, month + 1, 1)); setDetailDay(null); }}
+            style={{ ...navBtn, width: 36, height: 36, borderRadius: 99, background: "rgba(255,255,255,.6)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }}
+          >
+            <Icon name="chevronRight" size={16} />
+          </button>
         </div>
-        <div style={{ display: "flex", gap: 6 }}>
-          <button onClick={() => { setViewDate(new Date(year, month - 1, 1)); setDetailDay(null); }} style={navBtn}><Icon name="chevronLeft" size={16} /></button>
-          <button onClick={() => { setViewDate(new Date(today.getFullYear(), today.getMonth(), 1)); setDetailDay(today.getDate()); }} style={{ ...navBtn, fontSize: ".65rem", fontWeight: 700, padding: "0 8px", width: "auto" }}>Auj.</button>
-          <button onClick={() => { setViewDate(new Date(year, month + 1, 1)); setDetailDay(null); }} style={navBtn}><Icon name="chevronRight" size={16} /></button>
+
+        {/* Barre progression du mois */}
+        <div
+          role="progressbar"
+          aria-label="Progression du mois"
+          aria-valuenow={Math.round((today.getDate() / daysInMonth) * 100)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          style={{ height: 3, borderRadius: 99, background: "rgba(0,0,0,.08)", overflow: "hidden" }}
+        >
+          <div
+            className="fp-agenda-progress"
+            style={{ height: "100%", borderRadius: 99, background: "linear-gradient(90deg, var(--violet), var(--accent))", width: `${Math.min(100, (today.getDate() / daysInMonth) * 100)}%`, transition: "width .4s ease" }}
+          />
         </div>
       </div>
 
-      <div style={{ padding: "12px 16px 0" }}>
+      {/* Calendrier card flottante — chevauchement avec le gradient */}
+      <div style={{ padding: "0 16px", marginTop: -14 }}>
+        <div style={{ background: "var(--surface)", border: "1px solid var(--card-border)", boxShadow: "0 8px 28px rgba(0,0,0,.08)", borderRadius: 26, padding: "20px 16px 18px", backdropFilter: "var(--card-blur, none)", WebkitBackdropFilter: "var(--card-blur, none)" }}>
         {/* En-têtes jours */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2, marginBottom: 4 }}>
-          {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
-            <div key={i} style={{ textAlign: "center", fontSize: ".62rem", fontWeight: 700, color: i >= 5 ? "var(--warn)" : "var(--muted2)", padding: "2px 0" }}>{d}</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 12 }}>
+          {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((d, i) => (
+            <div key={i} style={{ textAlign: "center", fontSize: ".62rem", fontWeight: 800, color: i >= 5 ? "var(--warn)" : "var(--muted2)", padding: "4px 0", textTransform: "uppercase", letterSpacing: ".4px" }}>{d}</div>
           ))}
         </div>
 
         {/* Grille calendrier */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 3, marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 5, marginBottom: 0 }}>
           {Array.from({ length: firstMon }).map((_, i) => <div key={"e" + i} />)}
           {Array.from({ length: daysInMonth }).map((_, i) => {
             const dom = i + 1;
@@ -150,10 +202,10 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
               <button
                 key={dom}
                 onClick={() => { setDetailDay(isSel ? null : dom); setExpandedStat(null); }}
-                style={{ border: `1.5px solid ${isSel ? "var(--text)" : isToday ? "var(--accent)" : "transparent"}`, borderRadius: 10, padding: "5px 2px 4px", background: isSel ? "var(--text)" : isToday ? "var(--accent-bg)" : "transparent", cursor: "pointer", textAlign: "center", transition: "all .15s", position: "relative" }}
+                style={{ border: `1.5px solid ${isSel ? "var(--text)" : isToday ? "var(--accent)" : "transparent"}`, borderRadius: 12, padding: "10px 2px 9px", background: isSel ? "var(--text)" : isToday ? "var(--accent-bg)" : "transparent", cursor: "pointer", textAlign: "center", transition: "all .15s", position: "relative", minHeight: 44 }}
               >
-                <div style={{ fontSize: ".88rem", fontWeight: isToday || isSel ? 800 : 500, color: isSel ? "var(--bg)" : isToday ? "var(--accent)" : isWe ? "var(--warn)" : "var(--text)", lineHeight: 1.2 }}>{dom}</div>
-                <div style={{ display: "flex", justifyContent: "center", gap: 2, marginTop: 3, minHeight: 5 }}>
+                <div style={{ fontSize: "1rem", fontWeight: isToday || isSel ? 800 : 500, color: isSel ? "var(--bg)" : isToday ? "var(--accent)" : isWe ? "var(--warn)" : "var(--text)", lineHeight: 1.1 }}>{dom}</div>
+                <div style={{ display: "flex", justifyContent: "center", gap: 3, marginTop: 5, minHeight: 5 }}>
                   {dtl.length === 0 ? null : doneAll
                     ? <div style={{ width: 5, height: 5, borderRadius: "50%", background: isSel ? "var(--bg)" : "var(--green)" }} />
                     : dotColors.length > 0
@@ -167,7 +219,10 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
             );
           })}
         </div>
+        </div>{/* /calendar card */}
+      </div>
 
+      <div style={{ padding: "0 16px" }}>
         {/* Détail du jour sélectionné */}
         {detailDay && selDow !== null && (
           <div style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 16, padding: 14, marginBottom: 16, animation: "fadeUp .2s ease" }}>
@@ -297,7 +352,7 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
         )}
 
         {/* Stats du mois — cliquables, s'expandent en bas */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 0 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginTop: 18, marginBottom: 0 }}>
           {([
             { key: "all",    label: "Ce mois",  val: tasks.length,       color: "var(--accent)" },
             { key: "done",   label: "Faites",   val: doneTasks.length,   color: "var(--green)"  },
@@ -308,10 +363,10 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
               <div
                 key={key}
                 onClick={() => setExpandedStat(isOpen ? null : key)}
-                style={{ background: isOpen ? "var(--text)" : "var(--soft)", border: `1px solid ${isOpen ? "var(--text)" : "var(--border)"}`, borderRadius: isOpen ? "12px 12px 0 0" : 12, padding: "10px", textAlign: "center", cursor: val > 0 ? "pointer" : "default", transition: "all .2s", userSelect: "none" }}
+                style={{ background: isOpen ? "var(--text)" : "var(--surface)", border: `1px solid ${isOpen ? "var(--text)" : "var(--border)"}`, borderRadius: isOpen ? "16px 16px 0 0" : 16, padding: "16px 10px", textAlign: "center", cursor: val > 0 ? "pointer" : "default", transition: "all .2s", userSelect: "none", boxShadow: isOpen ? "none" : "0 2px 8px rgba(0,0,0,.04)" }}
               >
-                <div style={{ fontWeight: 800, fontSize: "1.4rem", color: isOpen ? "var(--bg)" : color, lineHeight: 1 }}>{val}</div>
-                <div style={{ fontSize: ".62rem", color: isOpen ? "var(--muted2)" : "var(--muted)", marginTop: 3, fontWeight: 600 }}>{label}</div>
+                <div style={{ fontWeight: 900, fontSize: "1.7rem", color: isOpen ? "var(--bg)" : color, lineHeight: 1, letterSpacing: "-.5px" }}>{val}</div>
+                <div style={{ fontSize: ".68rem", color: isOpen ? "var(--muted2)" : "var(--muted)", marginTop: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".3px" }}>{label}</div>
               </div>
             );
           })}

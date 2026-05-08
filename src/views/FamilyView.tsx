@@ -30,6 +30,8 @@ export function FamilyView({
   const [newName,        setNewName]        = useState("");
   const [nEmoji,         setNEmoji]         = useState("");
   const [nColorIdx,      setNColorIdx]      = useState(0);
+  const [roomsExpanded,   setRoomsExpanded]   = useState(false);
+  const [membersExpanded, setMembersExpanded] = useState(true);
   const [showRoomAddForm, setShowRoomAddForm] = useState(false);
   const [roomName,       setRoomName]       = useState("");
   const [roomIcon,       setRoomIcon]       = useState<IconName>("home");
@@ -67,22 +69,39 @@ export function FamilyView({
 
   return (
     <div style={{ animation: "fadeUp .35s ease" }}>
-      {/* Header */}
-      <div style={{ padding: "16px 20px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)" }}>
-        <div>
-          <h1 style={{ fontWeight: 800, fontSize: "1.3rem" }}>Notre Foyer</h1>
-          <div style={{ fontSize: ".65rem", color: "var(--muted)", marginTop: 2 }}>{members.length} membre{members.length !== 1 ? "s" : ""}</div>
+      {/* Header gradient */}
+      <div className="fp-foyer-header">
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: ".68rem", fontWeight: 800, color: "var(--accent)", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 4 }}>
+              {members.length} membre{members.length !== 1 ? "s" : ""} · {rooms.length} pièce{rooms.length !== 1 ? "s" : ""}
+            </div>
+            <h1 style={{ fontWeight: 900, fontSize: "1.65rem", lineHeight: 1, color: "var(--text)", letterSpacing: "-.5px" }}>Notre Foyer</h1>
+          </div>
+          <button
+            aria-label="Déconnexion"
+            onClick={onSignOut}
+            style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 99, background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.4)", color: "var(--muted)", fontSize: ".7rem", fontWeight: 700, cursor: "pointer", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }}
+          >
+            <Icon name="lock" size={12} /> Sortir
+          </button>
         </div>
-        <button onClick={onSignOut} style={{ ...ghostBtn, padding: "6px 12px", fontSize: ".72rem", gap: 5 }}>
-          <Icon name="lock" size={13} /> Déconnexion
-        </button>
-      </div>
 
-      {/* Onglets section */}
-      <div style={{ display: "flex", borderBottom: "1px solid var(--border)", padding: "0 16px" }}>
-        {([["foyer", "🏠 Foyer"], ["cuisine", "🍽️ Cuisine"]] as const).map(([s, l]) => (
-          <button key={s} onClick={() => { setSection(s); setSelRoom(null); }} style={{ flex: 1, border: "none", background: "none", cursor: "pointer", padding: "10px 0", fontSize: ".78rem", fontWeight: 700, color: section === s ? "var(--accent)" : "var(--muted2)", borderBottom: `2.5px solid ${section === s ? "var(--accent)" : "transparent"}`, marginBottom: -1, transition: "all .2s" }}>{l}</button>
-        ))}
+        {/* Section pill toggle */}
+        <div style={{ display: "flex", gap: 6, padding: 4, borderRadius: 14, background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.4)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }} className="fp-tab-bar">
+          {([["foyer", "Foyer", "home" as IconName], ["cuisine", "Cuisine", "chef" as IconName]] as const).map(([s, l, ic]) => {
+            const active = section === s;
+            return (
+              <button
+                key={s}
+                onClick={() => { setSection(s); setSelRoom(null); }}
+                style={{ flex: 1, border: "none", background: active ? "var(--accent)" : "transparent", color: active ? "white" : "var(--muted)", borderRadius: 10, padding: "8px 10px", fontSize: ".8rem", fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: active ? "0 2px 8px rgba(255,123,181,.35)" : "none", transition: "all .2s", minHeight: 36 }}
+              >
+                <Icon name={ic} size={13} sw={2.2} /> {l}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div style={{ padding: "16px" }}>
@@ -107,35 +126,66 @@ export function FamilyView({
               ))}
             </div>
 
-            {/* Membres */}
-            <SectionTitle iconName="users" title="Les membres" />
-            {members.map((m) => {
+            {/* Membres — collapsible */}
+            <button
+              aria-expanded={membersExpanded}
+              onClick={() => setMembersExpanded((v) => !v)}
+              style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "0 0 10px", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
+            >
+              <div style={{ width: 28, height: 28, borderRadius: 10, background: "var(--accent-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Icon name="users" size={14} color="var(--accent)" sw={2.2} />
+              </div>
+              <h2 style={{ fontWeight: 900, fontSize: "1rem", color: "var(--text)", letterSpacing: "-.2px", flex: 1 }}>Les membres</h2>
+              <span style={{ fontSize: ".7rem", fontWeight: 700, color: "var(--muted)" }}>{members.length}</span>
+              <div style={{ width: 26, height: 26, borderRadius: 99, background: "var(--soft)", display: "flex", alignItems: "center", justifyContent: "center", transform: membersExpanded ? "rotate(90deg)" : "rotate(0)", transition: "transform .25s ease" }}>
+                <Icon name="chevronRight" size={12} color="var(--muted)" sw={2.5} />
+              </div>
+            </button>
+
+            {membersExpanded && members.map((m) => {
               const mt = tasks.filter((t) => t.memberId === m.id);
               const md = mt.filter((t) => t.done).length;
               const pct = mt.length ? Math.round(md / mt.length * 100) : 0;
               return (
-                <div key={m.id} style={{ background: m.avatarBg, borderRadius: 14, padding: "12px 14px", marginBottom: 8 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--surface)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", border: `2px solid ${m.color}30` }}>{m.emoji}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 700, fontSize: ".9rem", color: m.color }}>{m.name}</div>
-                      <div style={{ fontSize: ".65rem", color: m.color, opacity: 0.7, marginTop: 1 }}>{m.isChild ? "Enfant 🌟" : m.workDays.length + " j/semaine travaillés"}</div>
+                <div
+                  key={m.id}
+                  style={{
+                    background: isDark ? "var(--surface)" : m.avatarBg,
+                    border: isDark ? `1px solid ${m.color}55` : "1px solid transparent",
+                    borderRadius: 16,
+                    padding: "14px 16px",
+                    marginBottom: 10,
+                    boxShadow: isDark ? "none" : "0 2px 8px rgba(0,0,0,.04)",
+                    backdropFilter: isDark ? "blur(20px)" : undefined,
+                    WebkitBackdropFilter: isDark ? "blur(20px)" : undefined,
+                    animation: "fadeUp .25s ease",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: "50%", background: isDark ? `${m.color}25` : "var(--surface)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", border: `2px solid ${m.color}${isDark ? "70" : "30"}`, flexShrink: 0 }}>{m.emoji}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 800, fontSize: ".95rem", color: isDark ? "var(--text)" : m.color }}>{m.name}</div>
+                      <div style={{ fontSize: ".68rem", color: isDark ? "var(--muted)" : m.color, opacity: isDark ? 1 : 0.75, marginTop: 2, fontWeight: 600 }}>
+                        {m.isChild ? "Enfant" : `${m.workDays.length} j/sem travaillés`}
+                      </div>
                     </div>
-                    <div style={{ fontSize: ".8rem", fontWeight: 700, color: m.color, opacity: 0.8 }}>{md}/{mt.length}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 99, background: isDark ? `${m.color}25` : "rgba(255,255,255,.55)", border: isDark ? `1px solid ${m.color}40` : "1px solid rgba(255,255,255,.5)" }}>
+                      <span style={{ fontSize: ".82rem", fontWeight: 900, color: isDark ? "var(--text)" : m.color, fontVariantNumeric: "tabular-nums" }}>{md}/{mt.length}</span>
+                    </div>
                     {members.length > 1 && (
-                      <button onClick={() => deleteMember(m.id)} style={{ background: "none", border: "none", cursor: "pointer", color: m.color, opacity: 0.4, padding: 4, display: "flex" }}>
+                      <button aria-label={`Supprimer ${m.name}`} onClick={() => deleteMember(m.id)} style={{ background: "none", border: "none", cursor: "pointer", color: isDark ? "var(--muted)" : m.color, opacity: 0.5, padding: 4, display: "flex" }}>
                         <Icon name="trash" size={13} />
                       </button>
                     )}
                   </div>
-                  <div style={{ height: 4, background: "rgba(255,255,255,.55)", borderRadius: 99, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${pct}%`, background: m.color, transition: "width .6s ease" }} />
+                  <div style={{ height: 5, background: isDark ? "rgba(255,255,255,.08)" : "rgba(255,255,255,.65)", borderRadius: 99, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${pct}%`, background: `linear-gradient(90deg, ${m.color}, ${m.color}cc)`, transition: "width .6s ease" }} />
                   </div>
                 </div>
               );
             })}
 
-            {showMemberForm ? (
+            {membersExpanded && (showMemberForm ? (
               <div style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 14, padding: 14, marginTop: 8, animation: "fadeUp .2s ease" }}>
                 <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
                   <input value={nEmoji} onChange={(e) => setNEmoji(e.target.value)} placeholder="😊" style={{ ...inputStyle, width: 60, textAlign: "center", fontSize: "1.2rem", background: "var(--surface)" }} />
@@ -161,14 +211,28 @@ export function FamilyView({
                 </div>
               </div>
             ) : (
-              <button onClick={() => setShowMemberForm(true)} style={{ width: "100%", padding: "9px", background: "var(--soft)", border: "1.5px dashed var(--border)", borderRadius: 12, color: "var(--muted)", fontSize: ".78rem", fontWeight: 600, cursor: "pointer", marginTop: 4, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              <button onClick={() => setShowMemberForm(true)} style={{ width: "100%", padding: "10px", background: "var(--soft)", border: "1.5px dashed var(--border)", borderRadius: 12, color: "var(--muted)", fontSize: ".78rem", fontWeight: 700, cursor: "pointer", marginTop: 4, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                 <Icon name="plus" size={13} sw={2.5} /> Ajouter un membre
               </button>
-            )}
+            ))}
 
-            {/* Pièces */}
+            {/* Pièces — collapsible */}
             <div style={{ marginTop: 20 }}>
-              <SectionTitle iconName="home" title="Les pièces" />
+              <button
+                aria-expanded={roomsExpanded}
+                onClick={() => setRoomsExpanded((v) => !v)}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "0 0 10px", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
+              >
+                <div style={{ width: 28, height: 28, borderRadius: 10, background: "var(--violet-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Icon name="home" size={14} color="var(--violet)" sw={2.2} />
+                </div>
+                <h2 style={{ fontWeight: 900, fontSize: "1rem", color: "var(--text)", letterSpacing: "-.2px", flex: 1 }}>Les pièces</h2>
+                <span style={{ fontSize: ".7rem", fontWeight: 700, color: "var(--muted)" }}>{rooms.length}</span>
+                <div style={{ width: 26, height: 26, borderRadius: 99, background: "var(--soft)", display: "flex", alignItems: "center", justifyContent: "center", transform: roomsExpanded ? "rotate(90deg)" : "rotate(0)", transition: "transform .25s ease" }}>
+                  <Icon name="chevronRight" size={12} color="var(--muted)" sw={2.5} />
+                </div>
+              </button>
+              {roomsExpanded && (<>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                 {rooms.map((r) => {
                   const rt = tasks.filter((t) => t.roomId === r.id);
@@ -221,10 +285,11 @@ export function FamilyView({
                   </div>
                 </div>
               ) : (
-                <button onClick={() => setShowRoomAddForm(true)} style={{ width: "100%", padding: "9px", background: "var(--soft)", border: "1.5px dashed var(--border)", borderRadius: 12, color: "var(--muted)", fontSize: ".78rem", fontWeight: 600, cursor: "pointer", marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                <button onClick={() => setShowRoomAddForm(true)} style={{ width: "100%", padding: "10px", background: "var(--soft)", border: "1.5px dashed var(--border)", borderRadius: 12, color: "var(--muted)", fontSize: ".78rem", fontWeight: 700, cursor: "pointer", marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                   <Icon name="plus" size={13} sw={2.5} /> Ajouter une pièce
                 </button>
               )}
+              </>)}
             </div>
 
             {/* Toggle thème */}
@@ -259,9 +324,8 @@ export function FamilyView({
                   boxShadow: "0 1px 4px rgba(0,0,0,.2)",
                   transition: "left .3s cubic-bezier(.4,0,.2,1)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 12,
                 }}>
-                  {isDark ? "🌙" : "☀️"}
+                  <Icon name={isDark ? "moon" : "sun"} size={12} color={isDark ? "var(--accent)" : "var(--warn)"} sw={2.5} />
                 </div>
               </div>
             </div>

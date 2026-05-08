@@ -165,7 +165,7 @@ export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, se
           { value: totalUrgent, label: "Urgentes", color: "var(--accent)"  },
         ];
         return (
-          <div style={{ display: "flex", gap: 8, padding: "14px 16px 0" }}>
+          <div style={{ display: "flex", gap: 8, padding: "14px 16px 20px" }}>
             {stats.map((s) => (
               <div key={s.label} style={{
                 flex: 1, borderRadius: 20, padding: "13px 10px", textAlign: "center",
