@@ -6,7 +6,7 @@ import { WorkConflictAlert } from "../components/ui/WorkConflictAlert";
 import { HomeTaskCard } from "../components/tasks/HomeTaskCard";
 import { EditTaskModal } from "../components/tasks/EditTaskModal";
 import { todayIdx, isWeekend, isTaskDoneOn, getWorkConflict, getFrenchHolidays, getVacation, dateKey, toDateStr } from "../lib/utils";
-import { DAYS_S, DAYS_F, MONTHS } from "../lib/constants";
+import { DAYS_S, DAYS_F, MONTHS, PRIORITY_CONFIG } from "../lib/constants";
 import { inputStyle, primaryBtn, ghostBtn, navBtn } from "../styles";
 
 export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, setWeekOff, toggleTask, deleteTask, addTask, updateTask, weekendWarn }: ViewProps) {
@@ -208,20 +208,20 @@ export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, se
                       onChange={(e) => setInName(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && !conflict && submitInline(dayIdx)}
                       placeholder={`Tâche pour ${DAYS_F[dayIdx]}…`}
-                      style={{ ...inputStyle, marginBottom: 8, background: "white" }}
+                      style={{ ...inputStyle, marginBottom: 8, background: "var(--surface)" }}
                     />
                     <MemberToggleBar members={members} selected={inMembers} onChange={setInMembers} />
                     <div style={{ marginBottom: 8 }}>
-                      <input type="time" value={inTime} onChange={(e) => setInTime(e.target.value)} style={{ ...inputStyle, background: "white" }} />
+                      <input type="time" value={inTime} onChange={(e) => setInTime(e.target.value)} style={{ ...inputStyle, background: "var(--surface)" }} />
                     </div>
                     <WorkConflictAlert conflict={conflict} />
-                    <select value={inRoom} onChange={(e) => setInRoom(e.target.value)} style={{ ...inputStyle, marginBottom: 8, background: "white" }}>
+                    <select value={inRoom} onChange={(e) => setInRoom(e.target.value)} style={{ ...inputStyle, marginBottom: 8, background: "var(--surface)" }}>
                       {rooms.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
                     </select>
                     <div style={{ display: "flex", gap: 5, marginBottom: 10 }}>
                       {(["low", "med", "high"] as Priority[]).map((p) => {
-                        const c = { low: { label: "Faible", color: "#16A34A", bg: "#DCFCE7" }, med: { label: "Normal", color: "#CA8A04", bg: "#FEF9C3" }, high: { label: "Urgent", color: "#DC2626", bg: "#FEE2E2" } }[p];
-                        return <button key={p} onClick={() => setInPrio(p)} style={{ flex: 1, padding: "7px 4px", border: `1.5px solid ${inPrio === p ? c.color : "var(--border)"}`, borderRadius: 8, background: inPrio === p ? c.bg : "white", color: inPrio === p ? c.color : "var(--muted)", fontSize: ".7rem", fontWeight: 700, cursor: "pointer" }}>{c.label}</button>;
+                        const c = PRIORITY_CONFIG[p];
+                        return <button key={p} onClick={() => setInPrio(p)} style={{ flex: 1, padding: "7px 4px", border: `1.5px solid ${inPrio === p ? c.color : "var(--border)"}`, borderRadius: 8, background: inPrio === p ? c.bg : "var(--surface)", color: inPrio === p ? c.color : "var(--muted)", fontSize: ".7rem", fontWeight: 700, cursor: "pointer" }}>{c.label}</button>;
                       })}
                     </div>
                     <div style={{ display: "flex", gap: 6 }}>
@@ -251,8 +251,8 @@ export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, se
         {/* Bilan weekend */}
         <div style={{ background: "var(--soft)", borderRadius: 14, padding: "14px 16px", marginBottom: 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <Icon name="sun" size={16} color="#D97706" />
-            <span style={{ fontWeight: 700, fontSize: ".82rem", color: "#92400E" }}>Bilan week-end</span>
+            <Icon name="sun" size={16} color="var(--warn)" />
+            <span style={{ fontWeight: 700, fontSize: ".82rem", color: "var(--text)" }}>Bilan week-end</span>
             <span style={{ marginLeft: "auto", fontSize: ".72rem", fontWeight: 700, color: "var(--muted2)" }}>{weDone}/{weTasks.length} faites</span>
           </div>
           <div style={{ height: 6, background: "var(--border)", borderRadius: 99, overflow: "hidden" }}>

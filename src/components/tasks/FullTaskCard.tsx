@@ -21,12 +21,13 @@ export function FullTaskCard({ task, members, rooms, onToggle, onDelete, onEdit 
   const pc = PRIORITY_CONFIG[task.priority];
   const rc = RECURRENCE_CONFIG[task.recurrence];
   const color = primaryMember?.color || room?.color || "#6B7280";
-  const bg = primaryMember?.avatarBg || "#F3F4F6";
 
   return (
     <div style={{
-      background: bg, borderRadius: 13, padding: "11px 13px",
+      background: "var(--surface)", borderRadius: 13, padding: "11px 13px",
       marginBottom: 8, animation: "fadeUp .2s ease",
+      border: `1px solid var(--card-border)`, boxShadow: "var(--card-shadow)",
+      borderLeft: `3px solid ${color}`,
       opacity: task.done ? 0.45 : 1,
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -36,7 +37,7 @@ export function FullTaskCard({ task, members, rooms, onToggle, onDelete, onEdit 
           style={{
             width: 24, height: 24, borderRadius: "50%",
             border: `2.5px solid ${task.done ? color : color + "70"}`,
-            background: task.done ? color : "white",
+            background: task.done ? color : "transparent",
             display: "flex", alignItems: "center", justifyContent: "center",
             flexShrink: 0, cursor: "pointer", transition: "all .2s",
           }}
@@ -84,7 +85,7 @@ export function FullTaskCard({ task, members, rooms, onToggle, onDelete, onEdit 
           <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
             {taskMembers.map((m) => (
               <div key={m.id} style={{
-                width: 28, height: 28, borderRadius: "50%", background: "white",
+                width: 28, height: 28, borderRadius: "50%", background: "var(--surface)",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: ".95rem",
               }}>

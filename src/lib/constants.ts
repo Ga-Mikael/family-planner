@@ -32,9 +32,9 @@ export const MEMBER_COLORS = [
 
 // ─── Configuration des priorités et récurrences ────────────────────────────
 export const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; bg: string }> = {
-  high: { label: "Urgent", color: "#DC2626", bg: "#FEE2E2" },
-  med:  { label: "Normal", color: "#CA8A04", bg: "#FEF9C3" },
-  low:  { label: "Faible", color: "#16A34A", bg: "#DCFCE7" },
+  high: { label: "Urgent", color: "var(--danger)", bg: "var(--danger-bg)" },
+  med:  { label: "Normal", color: "var(--warn)",   bg: "var(--warn-bg)"   },
+  low:  { label: "Faible", color: "var(--green)",  bg: "var(--green-bg)"  },
 };
 
 export const RECURRENCE_CONFIG: Record<Recurrence, { label: string; short: string }> = {

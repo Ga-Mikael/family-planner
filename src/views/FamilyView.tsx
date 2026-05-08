@@ -116,7 +116,7 @@ export function FamilyView({
               return (
                 <div key={m.id} style={{ background: m.avatarBg, borderRadius: 14, padding: "12px 14px", marginBottom: 8 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: "50%", background: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", border: `2px solid ${m.color}30` }}>{m.emoji}</div>
+                    <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--surface)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", border: `2px solid ${m.color}30` }}>{m.emoji}</div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, fontSize: ".9rem", color: m.color }}>{m.name}</div>
                       <div style={{ fontSize: ".65rem", color: m.color, opacity: 0.7, marginTop: 1 }}>{m.isChild ? "Enfant 🌟" : m.workDays.length + " j/semaine travaillés"}</div>
@@ -138,12 +138,12 @@ export function FamilyView({
             {showMemberForm ? (
               <div style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 14, padding: 14, marginTop: 8, animation: "fadeUp .2s ease" }}>
                 <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                  <input value={nEmoji} onChange={(e) => setNEmoji(e.target.value)} placeholder="😊" style={{ ...inputStyle, width: 60, textAlign: "center", fontSize: "1.2rem", background: "white" }} />
+                  <input value={nEmoji} onChange={(e) => setNEmoji(e.target.value)} placeholder="😊" style={{ ...inputStyle, width: 60, textAlign: "center", fontSize: "1.2rem", background: "var(--surface)" }} />
                   <input
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     placeholder="Prénom…"
-                    style={{ ...inputStyle, flex: 1, background: "white" }}
+                    style={{ ...inputStyle, flex: 1, background: "var(--surface)" }}
                     onKeyDown={(e) => { if (e.key === "Enter" && newName.trim()) { addMember({ name: newName.trim(), emoji: nEmoji || "😊", color: MEMBER_COLORS[nColorIdx].color, avatarBg: MEMBER_COLORS[nColorIdx].avatarBg }); setNewName(""); setNEmoji(""); setNColorIdx(0); setShowMemberForm(false); } }}
                   />
                 </div>
@@ -175,10 +175,10 @@ export function FamilyView({
                   const rd = rt.filter((t) => t.done).length;
                   const pct = rt.length ? Math.round(rd / rt.length * 100) : 0;
                   return (
-                    <button key={r.id} onClick={() => setSelRoom(r.id)} style={{ background: "white", border: "1.5px solid var(--border)", borderRadius: 14, padding: "12px 12px 10px", textAlign: "left", cursor: "pointer", position: "relative", overflow: "hidden" }}>
+                    <button key={r.id} onClick={() => setSelRoom(r.id)} style={{ background: "var(--surface)", border: "1.5px solid var(--border)", borderRadius: 14, padding: "12px 12px 10px", textAlign: "left", cursor: "pointer", position: "relative", overflow: "hidden" }}>
                       <div style={{ position: "absolute", inset: 0, background: r.color, opacity: 0.04 }} />
                       {r.id !== "r-general" && (
-                        <button onClick={(e) => { e.stopPropagation(); deleteRoom(r.id); }} style={{ position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,.06)", border: "none", borderRadius: "50%", width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 1, color: "var(--muted)" }}>
+                        <button onClick={(e) => { e.stopPropagation(); deleteRoom(r.id); }} style={{ position: "absolute", top: 4, right: 4, background: "var(--soft)", border: "none", borderRadius: "50%", width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 1, color: "var(--muted)" }}>
                           <Icon name="x" size={10} sw={2.5} />
                         </button>
                       )}
@@ -197,12 +197,12 @@ export function FamilyView({
 
               {showRoomAddForm ? (
                 <div style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 14, padding: 14, marginTop: 8, animation: "fadeUp .2s ease" }}>
-                  <input value={roomName} onChange={(e) => setRoomName(e.target.value)} placeholder="Nom de la pièce…" style={{ ...inputStyle, background: "white", marginBottom: 10 }} autoFocus />
+                  <input value={roomName} onChange={(e) => setRoomName(e.target.value)} placeholder="Nom de la pièce…" style={{ ...inputStyle, background: "var(--surface)", marginBottom: 10 }} autoFocus />
                   <div style={{ fontSize: ".72rem", fontWeight: 700, color: "var(--muted)", marginBottom: 6, textTransform: "uppercase", letterSpacing: ".5px" }}>Icône</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
                     {(["sofa", "chef", "bath", "bed", "door", "dog", "child", "broom", "home", "sparkle", "briefcase", "star", "bell"] as IconName[]).map((ic) => (
-                      <button key={ic} onClick={() => setRoomIcon(ic)} style={{ width: 34, height: 34, borderRadius: 8, border: `2px solid ${roomIcon === ic ? "var(--text)" : "var(--border)"}`, background: roomIcon === ic ? "var(--text)" : "white", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                        <Icon name={ic} size={15} color={roomIcon === ic ? "white" : "var(--muted)"} sw={1.8} />
+                      <button key={ic} onClick={() => setRoomIcon(ic)} style={{ width: 34, height: 34, borderRadius: 8, border: `2px solid ${roomIcon === ic ? "var(--text)" : "var(--border)"}`, background: roomIcon === ic ? "var(--text)" : "var(--surface)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                        <Icon name={ic} size={15} color={roomIcon === ic ? "var(--bg)" : "var(--muted)"} sw={1.8} />
                       </button>
                     ))}
                   </div>
@@ -268,7 +268,7 @@ export function FamilyView({
 
             {/* Compte */}
             <div style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 14, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 34, height: 34, borderRadius: 10, background: "#EEE", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: "var(--soft2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Icon name="mail" size={16} color="var(--muted)" />
               </div>
               <div style={{ flex: 1 }}>
@@ -309,25 +309,25 @@ export function FamilyView({
 
             {showRoomForm ? (
               <div style={{ background: "var(--soft)", border: "1.5px solid var(--border)", borderRadius: 14, padding: 14, marginTop: 8, animation: "fadeUp .2s ease" }}>
-                <input autoFocus value={rfName} onChange={(e) => setRfName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && !roomConflict && submitRoomTask()} placeholder={`Nouvelle tâche — ${room.name}…`} style={{ ...inputStyle, marginBottom: 8, background: "white" }} />
+                <input autoFocus value={rfName} onChange={(e) => setRfName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && !roomConflict && submitRoomTask()} placeholder={`Nouvelle tâche — ${room.name}…`} style={{ ...inputStyle, marginBottom: 8, background: "var(--surface)" }} />
                 <MemberToggleBar members={members} selected={rfMs} onChange={setRfMs} />
-                <select value={rfDay} onChange={(e) => setRfDay(e.target.value)} style={{ ...inputStyle, marginBottom: 8, background: "white" }}>
+                <select value={rfDay} onChange={(e) => setRfDay(e.target.value)} style={{ ...inputStyle, marginBottom: 8, background: "var(--surface)" }}>
                   {DAYS_F.map((d, i) => <option key={i} value={i}>{d}</option>)}
                 </select>
                 <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
                   <div style={{ display: "flex", gap: 5, flex: 2 }}>
                     {(["low", "med", "high"] as Priority[]).map((p) => {
                       const c = PRIORITY_CONFIG[p];
-                      return <button key={p} onClick={() => setRfP(p)} style={{ flex: 1, padding: "7px 4px", border: `1.5px solid ${rfP === p ? c.color : "var(--border)"}`, borderRadius: 8, background: rfP === p ? c.bg : "white", color: rfP === p ? c.color : "var(--muted)", fontSize: ".68rem", fontWeight: 700, cursor: "pointer" }}>{c.label}</button>;
+                      return <button key={p} onClick={() => setRfP(p)} style={{ flex: 1, padding: "7px 4px", border: `1.5px solid ${rfP === p ? c.color : "var(--border)"}`, borderRadius: 8, background: rfP === p ? c.bg : "var(--surface)", color: rfP === p ? c.color : "var(--muted)", fontSize: ".68rem", fontWeight: 700, cursor: "pointer" }}>{c.label}</button>;
                     })}
                   </div>
-                  <input type="time" value={rfTime} onChange={(e) => setRfTime(e.target.value)} style={{ ...inputStyle, flex: 1, background: "white" }} />
+                  <input type="time" value={rfTime} onChange={(e) => setRfTime(e.target.value)} style={{ ...inputStyle, flex: 1, background: "var(--surface)" }} />
                 </div>
                 <WorkConflictAlert conflict={roomConflict} />
                 <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 10 }}>
                   {(["once", "daily", "weekly", "monthly", "annual"] as Recurrence[]).map((rec) => {
                     const a = rfRec === rec;
-                    return <button key={rec} onClick={() => setRfRec(rec)} style={{ flex: "1 1 0", minWidth: 54, padding: "6px 4px", border: `1.5px solid ${a ? "var(--text)" : "var(--border)"}`, borderRadius: 8, background: a ? "var(--text)" : "white", color: a ? "white" : "var(--muted)", fontSize: ".65rem", fontWeight: 700, cursor: "pointer" }}>{RECURRENCE_CONFIG[rec].short}</button>;
+                    return <button key={rec} onClick={() => setRfRec(rec)} style={{ flex: "1 1 0", minWidth: 54, padding: "6px 4px", border: `1.5px solid ${a ? "var(--text)" : "var(--border)"}`, borderRadius: 8, background: a ? "var(--text)" : "var(--surface)", color: a ? "var(--bg)" : "var(--muted)", fontSize: ".65rem", fontWeight: 700, cursor: "pointer" }}>{RECURRENCE_CONFIG[rec].short}</button>;
                   })}
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
@@ -354,10 +354,10 @@ export function FamilyView({
                 const di = i as DayIndex;
                 return (
                   <div key={i} style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: di === todayIdx() ? "#FEF9C3" : "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontWeight: 800, fontSize: ".8rem" }}>{DAYS_S2[i]}</div>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: di === todayIdx() ? "var(--warn-bg)" : "var(--surface)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontWeight: 800, fontSize: ".8rem" }}>{DAYS_S2[i]}</div>
                     {ed === di ? (
                       <div style={{ display: "flex", flex: 1, gap: 8 }}>
-                        <input value={miVal} onChange={(e) => setMiVal(e.target.value)} placeholder="Nom du repas…" style={{ ...inputStyle, flex: 1, padding: "6px 10px", fontSize: ".8rem", background: "white" }} onKeyDown={(e) => { if (e.key === "Enter") { updateMeals({ ...meals, [di]: miVal }); setEd(null); } }} autoFocus />
+                        <input value={miVal} onChange={(e) => setMiVal(e.target.value)} placeholder="Nom du repas…" style={{ ...inputStyle, flex: 1, padding: "6px 10px", fontSize: ".8rem", background: "var(--surface)" }} onKeyDown={(e) => { if (e.key === "Enter") { updateMeals({ ...meals, [di]: miVal }); setEd(null); } }} autoFocus />
                         <button onClick={() => { updateMeals({ ...meals, [di]: miVal }); setEd(null); }} style={{ ...primaryBtn, padding: "6px 14px", fontSize: ".75rem" }}>OK</button>
                       </div>
                     ) : (
@@ -377,8 +377,8 @@ export function FamilyView({
 
             <SectionTitle iconName="cart" title={`Courses${groceries.filter((g) => !g.done).length > 0 ? " · " + groceries.filter((g) => !g.done).length + " restant" + (groceries.filter((g) => !g.done).length > 1 ? "s" : "") : ""}`} />
             <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-              <input value={gn} onChange={(e) => setGn(e.target.value)} placeholder="Article…" style={{ ...inputStyle, flex: 1, background: "white" }} onKeyDown={(e) => { if (e.key === "Enter" && gn.trim()) { addGrocery({ name: gn.trim(), qty: gqVal, done: false }); setGn(""); setGqVal(""); } }} />
-              <input value={gqVal} onChange={(e) => setGqVal(e.target.value)} placeholder="Qté" style={{ ...inputStyle, width: 70, background: "white" }} />
+              <input value={gn} onChange={(e) => setGn(e.target.value)} placeholder="Article…" style={{ ...inputStyle, flex: 1, background: "var(--surface)" }} onKeyDown={(e) => { if (e.key === "Enter" && gn.trim()) { addGrocery({ name: gn.trim(), qty: gqVal, done: false }); setGn(""); setGqVal(""); } }} />
+              <input value={gqVal} onChange={(e) => setGqVal(e.target.value)} placeholder="Qté" style={{ ...inputStyle, width: 70, background: "var(--surface)" }} />
               <button onClick={() => { if (gn.trim()) { addGrocery({ name: gn.trim(), qty: gqVal, done: false }); setGn(""); setGqVal(""); } }} style={{ ...primaryBtn, padding: "10px 14px" }}>
                 <Icon name="plus" size={18} sw={2.4} />
               </button>

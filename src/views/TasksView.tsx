@@ -118,30 +118,30 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
           {/* Formulaire d'ajout */}
           {show ? (
             <div style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 16, padding: 16, marginBottom: 14, animation: "fadeUp .2s ease" }}>
-              <input value={fname} onChange={(e) => setFname(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} placeholder="Nom de la tâche…" style={{ ...inputStyle, marginBottom: 8, background: "white" }} />
+              <input value={fname} onChange={(e) => setFname(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} placeholder="Nom de la tâche…" style={{ ...inputStyle, marginBottom: 8, background: "var(--surface)" }} />
               <MemberToggleBar members={members} selected={fms} onChange={setFms} />
-              <select value={fd} onChange={(e) => setFd(e.target.value)} style={{ ...inputStyle, marginBottom: 8, background: "white" }}>
+              <select value={fd} onChange={(e) => setFd(e.target.value)} style={{ ...inputStyle, marginBottom: 8, background: "var(--surface)" }}>
                 {DAYS_F.map((d, i) => <option key={i} value={i}>{d}</option>)}
               </select>
               <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                <select value={fr} onChange={(e) => setFr(e.target.value)} style={{ ...inputStyle, flex: 1, background: "white" }}>
+                <select value={fr} onChange={(e) => setFr(e.target.value)} style={{ ...inputStyle, flex: 1, background: "var(--surface)" }}>
                   {rooms.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
-                <input type="time" value={ftime} onChange={(e) => setFtime(e.target.value)} style={{ ...inputStyle, flex: 1, background: "white" }} />
+                <input type="time" value={ftime} onChange={(e) => setFtime(e.target.value)} style={{ ...inputStyle, flex: 1, background: "var(--surface)" }} />
               </div>
               <div style={{ display: "flex", gap: 5, marginBottom: 8 }}>
                 {(["low", "med", "high"] as Priority[]).map((p) => {
                   const c = PRIORITY_CONFIG[p];
-                  return <button key={p} onClick={() => setFp(p)} style={{ flex: 1, padding: "7px 4px", border: `1.5px solid ${fp === p ? c.color : "var(--border)"}`, borderRadius: 8, background: fp === p ? c.bg : "white", color: fp === p ? c.color : "var(--muted)", fontSize: ".7rem", fontWeight: 700, cursor: "pointer" }}>{c.label}</button>;
+                  return <button key={p} onClick={() => setFp(p)} style={{ flex: 1, padding: "7px 4px", border: `1.5px solid ${fp === p ? c.color : "var(--border)"}`, borderRadius: 8, background: fp === p ? c.bg : "var(--surface)", color: fp === p ? c.color : "var(--muted)", fontSize: ".7rem", fontWeight: 700, cursor: "pointer" }}>{c.label}</button>;
                 })}
               </div>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 8 }}>
                 {(["once", "daily", "weekly", "monthly", "annual"] as Recurrence[]).map((rec) => {
                   const a = frec === rec;
-                  return <button key={rec} onClick={() => setFrec(rec)} style={{ flex: "1 1 0", minWidth: 52, padding: "6px 4px", border: `1.5px solid ${a ? "var(--text)" : "var(--border)"}`, borderRadius: 8, background: a ? "var(--text)" : "white", color: a ? "white" : "var(--muted)", fontSize: ".65rem", fontWeight: 700, cursor: "pointer" }}>{RECURRENCE_CONFIG[rec].short}</button>;
+                  return <button key={rec} onClick={() => setFrec(rec)} style={{ flex: "1 1 0", minWidth: 52, padding: "6px 4px", border: `1.5px solid ${a ? "var(--text)" : "var(--border)"}`, borderRadius: 8, background: a ? "var(--text)" : "var(--surface)", color: a ? "var(--bg)" : "var(--muted)", fontSize: ".65rem", fontWeight: 700, cursor: "pointer" }}>{RECURRENCE_CONFIG[rec].short}</button>;
                 })}
               </div>
-              <input value={fnote} onChange={(e) => setFnote(e.target.value)} placeholder="Note optionnelle…" style={{ ...inputStyle, marginBottom: 8, background: "white", fontSize: ".8rem" }} />
+              <input value={fnote} onChange={(e) => setFnote(e.target.value)} placeholder="Note optionnelle…" style={{ ...inputStyle, marginBottom: 8, background: "var(--surface)", fontSize: ".8rem" }} />
               <WorkConflictAlert conflict={conflict} />
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={submit} disabled={!!conflict} style={{ ...primaryBtn, flex: 1, opacity: conflict ? 0.6 : 1, cursor: conflict ? "not-allowed" : "pointer" }}>{conflict ? "⚠️ Conflit" : "Ajouter ✓"}</button>
@@ -184,7 +184,7 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
       {activeTab === "reminders" && (
         <div style={{ padding: "16px" }}>
           {/* Bannière notifications */}
-          <div style={{ background: notifPerm === "granted" ? "#D1FAE5" : "var(--soft)", border: `1px solid ${notifPerm === "granted" ? "#6EE7B7" : "var(--border)"}`, borderRadius: 14, padding: "12px 14px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ background: notifPerm === "granted" ? "var(--green-bg)" : "var(--soft)", border: `1px solid ${notifPerm === "granted" ? "var(--green)" : "var(--border)"}`, borderRadius: 14, padding: "12px 14px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: notifPerm === "granted" ? "var(--green-bg)" : "var(--violet-bg)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <Icon name="bell" size={17} color={notifPerm === "granted" ? "var(--green)" : "var(--violet)"} />
             </div>
@@ -201,7 +201,7 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
               </div>
             </div>
             {notifPerm !== "granted" && notifPerm !== "denied" && (
-              <button onClick={requestNotifPerm} style={{ padding: "7px 14px", border: "none", borderRadius: 9, background: "#7C3AED", color: "white", fontSize: ".75rem", fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+              <button onClick={requestNotifPerm} style={{ padding: "7px 14px", border: "none", borderRadius: 9, background: "var(--violet)", color: "var(--bg)", fontSize: ".75rem", fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
                 Activer
               </button>
             )}
@@ -211,23 +211,23 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
           <div style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 16, padding: 16, marginBottom: 16 }}>
             <div style={{ fontWeight: 700, fontSize: ".8rem", marginBottom: 10, color: "var(--muted)" }}>Nouveau rappel</div>
             <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-              <input value={reEmojiVal} onChange={(e) => setReEmojiVal(e.target.value)} style={{ ...inputStyle, width: 56, textAlign: "center", fontSize: "1.2rem", background: "white" }} />
+              <input value={reEmojiVal} onChange={(e) => setReEmojiVal(e.target.value)} style={{ ...inputStyle, width: 56, textAlign: "center", fontSize: "1.2rem", background: "var(--surface)" }} />
               <input
                 value={rt}
                 onChange={(e) => setRt(e.target.value)}
                 placeholder="Titre du rappel…"
-                style={{ ...inputStyle, flex: 1, background: "white" }}
+                style={{ ...inputStyle, flex: 1, background: "var(--surface)" }}
                 onKeyDown={(e) => { if (e.key === "Enter" && rt.trim()) submitReminder(); }}
               />
             </div>
             <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-              <select value={reDayVal} onChange={(e) => setReDayVal(e.target.value)} style={{ ...inputStyle, flex: 1, background: "white" }}>
+              <select value={reDayVal} onChange={(e) => setReDayVal(e.target.value)} style={{ ...inputStyle, flex: 1, background: "var(--surface)" }}>
                 {DAYS_F.map((d, i) => <option key={i} value={i}>{d}</option>)}
               </select>
-              <input type="time" value={reTime} onChange={(e) => setReTime(e.target.value)} style={{ ...inputStyle, flex: 1, background: "white" }} />
+              <input type="time" value={reTime} onChange={(e) => setReTime(e.target.value)} style={{ ...inputStyle, flex: 1, background: "var(--surface)" }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <input type="date" value={reDate} onChange={(e) => setReDate(e.target.value)} style={{ ...inputStyle, flex: 1, background: "white", fontSize: ".78rem" }} />
+              <input type="date" value={reDate} onChange={(e) => setReDate(e.target.value)} style={{ ...inputStyle, flex: 1, background: "var(--surface)", fontSize: ".78rem" }} />
               <span style={{ fontSize: ".68rem", color: "var(--muted2)", whiteSpace: "nowrap" }}>Date précise</span>
             </div>
             <button onClick={submitReminder} style={{ ...primaryBtn, width: "100%" }}>
@@ -249,11 +249,11 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 700, fontSize: ".875rem", color: "var(--text)" }}>{r.title}</div>
                         <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
-                          {r.time && <span style={{ fontSize: ".7rem", color: "#7C5CD9" }}>{r.time}</span>}
-                          {r.date && <span style={{ fontSize: ".7rem", color: "#7C5CD9", fontWeight: 600 }}>📅 {r.date}</span>}
+                          {r.time && <span style={{ fontSize: ".7rem", color: "var(--violet)" }}>{r.time}</span>}
+                          {r.date && <span style={{ fontSize: ".7rem", color: "var(--violet)", fontWeight: 600 }}>📅 {r.date}</span>}
                         </div>
                       </div>
-                      <button onClick={() => deleteRem(r.id)} style={{ background: "none", border: "none", color: "#7C5CD9", cursor: "pointer", padding: 5, display: "flex", opacity: 0.6 }}>
+                      <button onClick={() => deleteRem(r.id)} style={{ background: "none", border: "none", color: "var(--violet)", cursor: "pointer", padding: 5, display: "flex", opacity: 0.6 }}>
                         <Icon name="x" size={14} />
                       </button>
                     </div>

@@ -105,7 +105,7 @@ export function EditTaskModal({ task, members, rooms, onSave, onClose }: EditTas
               <button
                 key={p}
                 onClick={() => setPriority(p)}
-                style={{ flex: 1, padding: "7px 4px", border: `1.5px solid ${priority === p ? c.color : "var(--border)"}`, borderRadius: 8, background: priority === p ? c.bg : "white", color: priority === p ? c.color : "var(--muted)", fontSize: ".7rem", fontWeight: 700, cursor: "pointer" }}
+                style={{ flex: 1, padding: "7px 4px", border: `1.5px solid ${priority === p ? c.color : "var(--border)"}`, borderRadius: 8, background: priority === p ? c.bg : "var(--surface)", color: priority === p ? c.color : "var(--muted)", fontSize: ".7rem", fontWeight: 700, cursor: "pointer" }}
               >
                 {c.label}
               </button>
@@ -120,7 +120,7 @@ export function EditTaskModal({ task, members, rooms, onSave, onClose }: EditTas
               <button
                 key={rec}
                 onClick={() => setRecurrence(rec)}
-                style={{ flex: "1 1 0", minWidth: 56, padding: "6px 4px", border: `1.5px solid ${active ? "var(--text)" : "var(--border)"}`, borderRadius: 8, background: active ? "var(--text)" : "white", color: active ? "white" : "var(--muted)", fontSize: ".65rem", fontWeight: 700, cursor: "pointer" }}
+                style={{ flex: "1 1 0", minWidth: 56, padding: "6px 4px", border: `1.5px solid ${active ? "var(--text)" : "var(--border)"}`, borderRadius: 8, background: active ? "var(--text)" : "var(--surface)", color: active ? "var(--bg)" : "var(--muted)", fontSize: ".65rem", fontWeight: 700, cursor: "pointer" }}
               >
                 {RECURRENCE_CONFIG[rec].short}
               </button>
