@@ -135,14 +135,43 @@ input, select, textarea, button { font-family: var(--font-body); }
 }
 
 .fp-agenda-header {
+  position: relative;
   padding: 52px 18px 26px;
   transition: background .5s;
+  overflow: hidden;
 }
 :root .fp-agenda-header {
   background: linear-gradient(155deg, #EDE8FF 0%, #FFE8CC 100%);
 }
+:root .fp-agenda-header::before {
+  content: "";
+  position: absolute;
+  top: -40px; right: -30px;
+  width: 180px; height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,123,181,.35) 0%, transparent 70%);
+  pointer-events: none;
+}
+:root .fp-agenda-header::after {
+  content: "";
+  position: absolute;
+  bottom: -50px; left: -40px;
+  width: 160px; height: 160px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(167,139,250,.3) 0%, transparent 70%);
+  pointer-events: none;
+}
 [data-theme="dark"] .fp-agenda-header {
   background: transparent;
+}
+[data-theme="dark"] .fp-agenda-header::before,
+[data-theme="dark"] .fp-agenda-header::after {
+  display: none;
+}
+.fp-agenda-header > * { position: relative; z-index: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fp-agenda-progress { transition: none !important; }
 }
 
 .fp-tab-bar {

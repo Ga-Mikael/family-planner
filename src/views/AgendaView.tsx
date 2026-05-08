@@ -108,22 +108,39 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
       {/* Header gradient */}
       <div className="fp-agenda-header">
         {/* Row: nav + month title */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-          <button onClick={() => { setViewDate(new Date(year, month - 1, 1)); setDetailDay(null); }} style={{ ...navBtn, borderRadius: 99 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 14 }}>
+          <button
+            aria-label="Mois précédent"
+            onClick={() => { setViewDate(new Date(year, month - 1, 1)); setDetailDay(null); }}
+            style={{ ...navBtn, width: 36, height: 36, borderRadius: 99, background: "rgba(255,255,255,.6)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }}
+          >
             <Icon name="chevronLeft" size={16} />
           </button>
 
-          <div style={{ textAlign: "center" }}>
-            {/* Today chip — only current month */}
+          <div style={{ textAlign: "center", flex: 1 }}>
+            {/* Today chip — clickable, jumps to today */}
             {isCurrentMonth ? (
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "var(--accent-bg)", border: "1px solid var(--accent)", borderRadius: 99, padding: "3px 10px", marginBottom: 7 }}>
-                <div style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--accent)" }} />
+              <button
+                aria-label="Aller à aujourd'hui"
+                onClick={() => { setViewDate(new Date(today.getFullYear(), today.getMonth(), 1)); setDetailDay(today.getDate()); }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "var(--accent-bg)", border: "1px solid var(--accent)", borderRadius: 99, padding: "3px 10px", marginBottom: 7, cursor: "pointer" }}
+              >
+                <span aria-hidden="true" style={{ fontSize: ".7rem", lineHeight: 1 }}>✨</span>
                 <span style={{ fontSize: ".62rem", fontWeight: 800, color: "var(--accent)", textTransform: "uppercase", letterSpacing: ".5px" }}>
                   Aujourd'hui · {DAYS_F[(today.getDay() === 0 ? 6 : today.getDay() - 1) as DayIndex].slice(0, 3)}. {today.getDate()}
                 </span>
-              </div>
+              </button>
             ) : (
-              <div style={{ height: 22, marginBottom: 7 }} />
+              <button
+                aria-label="Revenir au mois courant"
+                onClick={() => { setViewDate(new Date(today.getFullYear(), today.getMonth(), 1)); setDetailDay(today.getDate()); }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,.55)", border: "1px solid var(--border)", borderRadius: 99, padding: "3px 10px", marginBottom: 7, cursor: "pointer" }}
+              >
+                <Icon name="chevronLeft" size={11} color="var(--muted)" />
+                <span style={{ fontSize: ".62rem", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".5px" }}>
+                  Retour à aujourd'hui
+                </span>
+              </button>
             )}
             <h1 style={{ fontWeight: 900, fontSize: "1.65rem", lineHeight: 1, color: "var(--text)", letterSpacing: "-.5px" }}>
               {MONTHS[month]}{" "}
@@ -131,22 +148,28 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
             </h1>
           </div>
 
-          <div style={{ display: "flex", gap: 6 }}>
-            <button
-              onClick={() => { setViewDate(new Date(today.getFullYear(), today.getMonth(), 1)); setDetailDay(today.getDate()); }}
-              style={{ height: 32, borderRadius: 99, border: "none", background: "var(--accent)", color: "white", fontSize: ".62rem", fontWeight: 800, padding: "0 12px", cursor: "pointer", letterSpacing: ".3px", boxShadow: "0 2px 8px rgba(255,123,181,.35)" }}
-            >
-              Auj.
-            </button>
-            <button onClick={() => { setViewDate(new Date(year, month + 1, 1)); setDetailDay(null); }} style={{ ...navBtn, borderRadius: 99 }}>
-              <Icon name="chevronRight" size={16} />
-            </button>
-          </div>
+          <button
+            aria-label="Mois suivant"
+            onClick={() => { setViewDate(new Date(year, month + 1, 1)); setDetailDay(null); }}
+            style={{ ...navBtn, width: 36, height: 36, borderRadius: 99, background: "rgba(255,255,255,.6)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }}
+          >
+            <Icon name="chevronRight" size={16} />
+          </button>
         </div>
 
         {/* Barre progression du mois */}
-        <div style={{ height: 3, borderRadius: 99, background: "rgba(0,0,0,.08)", overflow: "hidden" }}>
-          <div style={{ height: "100%", borderRadius: 99, background: "linear-gradient(90deg, var(--violet), var(--accent))", width: `${Math.min(100, (today.getDate() / daysInMonth) * 100)}%`, transition: "width .4s ease" }} />
+        <div
+          role="progressbar"
+          aria-label="Progression du mois"
+          aria-valuenow={Math.round((today.getDate() / daysInMonth) * 100)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          style={{ height: 3, borderRadius: 99, background: "rgba(0,0,0,.08)", overflow: "hidden" }}
+        >
+          <div
+            className="fp-agenda-progress"
+            style={{ height: "100%", borderRadius: 99, background: "linear-gradient(90deg, var(--violet), var(--accent))", width: `${Math.min(100, (today.getDate() / daysInMonth) * 100)}%`, transition: "width .4s ease" }}
+          />
         </div>
       </div>
 
