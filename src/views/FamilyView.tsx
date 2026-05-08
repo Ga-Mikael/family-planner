@@ -30,7 +30,7 @@ export function FamilyView({
   const [newName,        setNewName]        = useState("");
   const [nEmoji,         setNEmoji]         = useState("");
   const [nColorIdx,      setNColorIdx]      = useState(0);
-  const [roomsExpanded,   setRoomsExpanded]   = useState(true);
+  const [roomsExpanded,   setRoomsExpanded]   = useState(false);
   const [membersExpanded, setMembersExpanded] = useState(true);
   const [showRoomAddForm, setShowRoomAddForm] = useState(false);
   const [roomName,       setRoomName]       = useState("");
