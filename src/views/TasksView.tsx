@@ -100,6 +100,26 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
       {/* ── ONGLET TÂCHES ── */}
       {activeTab === "tasks" && (
         <div style={{ padding: "14px 16px" }}>
+          {/* Bannière notifications */}
+          {notifPerm !== "granted" && notifPerm !== "denied" && (
+            <div style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 12, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10 }}>
+              <Icon name="bell" size={15} color="var(--accent)" />
+              <div style={{ flex: 1, fontSize: ".72rem", color: "var(--muted)" }}>
+                Activez les notifications pour recevoir une alerte sur les tâches avec une heure.
+              </div>
+              <button onClick={requestNotifPerm} style={{ padding: "5px 10px", border: "none", borderRadius: 8, background: "var(--accent)", color: "var(--bg)", fontSize: ".72rem", fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+                Activer
+              </button>
+            </div>
+          )}
+          {notifPerm === "granted" && tasks.some((t) => t.dueTime) && (
+            <div style={{ background: "var(--green-bg)", border: "1px solid var(--green)", borderRadius: 12, padding: "8px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+              <Icon name="bell" size={14} color="var(--green)" />
+              <span style={{ fontSize: ".72rem", color: "var(--text)", fontWeight: 600 }}>
+                Notifications actives — tâches avec heure notifient 5 min avant
+              </span>
+            </div>
+          )}
           {/* Recherche */}
           <div style={{ position: "relative", marginBottom: 12 }}>
             <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--muted2)" }}>

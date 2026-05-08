@@ -121,3 +121,93 @@ export function getVacation(date: Date): Vacation | null {
   const t = date.getTime();
   return VACANCES.find((v) => t >= v.start.getTime() && t <= v.end.getTime()) ?? null;
 }
+
+// ─── Export calendrier Apple (.ics) ────────────────────────────────────────
+
+const ICS_BYDAY = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"] as const;
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+function icsDate(d: Date) {
+  return `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`;
+}
+function icsDateTime(d: Date, time: string) {
+  const [h, min] = time.split(":").map(Number);
+  return `${icsDate(d)}T${pad2(h)}${pad2(min)}00`;
+}
+
+/** Génère le contenu d'un fichier .ics pour une tâche */
+export function generateICS(task: Task, memberNames: string[] = []): string {
+  const now = new Date();
+
+  // Date de début : dueDate si définie, sinon prochaine occurrence du jour
+  let startDate: Date;
+  if (task.dueDate) {
+    const [y, mo, d] = task.dueDate.split("-").map(Number);
+    startDate = new Date(y, mo - 1, d);
+  } else {
+    const diff = (task.day - todayIdx() + 7) % 7;
+    startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff);
+  }
+
+  // DTSTART / DTEND
+  let dtstart: string, dtend: string, allDay: boolean;
+  if (task.dueTime) {
+    allDay  = false;
+    dtstart = icsDateTime(startDate, task.dueTime);
+    const [h, min] = task.dueTime.split(":").map(Number);
+    const endDate = new Date(startDate);
+    endDate.setHours(h + 1, min, 0);
+    dtend = `${icsDate(endDate)}T${pad2(endDate.getHours())}${pad2(endDate.getMinutes())}00`;
+  } else {
+    allDay  = true;
+    dtstart = icsDate(startDate);
+    const nextDay = new Date(startDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    dtend = icsDate(nextDay);
+  }
+
+  const stamp = icsDateTime(now, `${pad2(now.getHours())}:${pad2(now.getMinutes())}`);
+  const uid   = `task-${task.id}@family-planner`;
+
+  const rruleMap: Partial<Record<string, string>> = {
+    daily:   "RRULE:FREQ=DAILY",
+    weekly:  `RRULE:FREQ=WEEKLY;BYDAY=${ICS_BYDAY[task.day]}`,
+    monthly: "RRULE:FREQ=MONTHLY",
+    annual:  "RRULE:FREQ=YEARLY",
+  };
+
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Family Planner//FR",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    "BEGIN:VEVENT",
+    `UID:${uid}`,
+    `DTSTAMP:${stamp}`,
+    allDay ? `DTSTART;VALUE=DATE:${dtstart}` : `DTSTART:${dtstart}`,
+    allDay ? `DTEND;VALUE=DATE:${dtend}`     : `DTEND:${dtend}`,
+    `SUMMARY:${task.name}`,
+    ...(task.note           ? [`DESCRIPTION:${task.note.replace(/\n/g, "\\n")}`]         : []),
+    ...(memberNames.length  ? [`X-FAMILY-PLANNER-MEMBERS:${memberNames.join(", ")}`]     : []),
+    ...(task.recurrence !== "once" ? [rruleMap[task.recurrence] ?? ""]                   : []),
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].filter(Boolean);
+
+  return lines.join("\r\n");
+}
+
+/** Déclenche le téléchargement / ouverture d'un .ics (Apple Calendrier sur iOS/macOS) */
+export function exportToCalendar(task: Task, memberNames: string[] = []): void {
+  const ics  = generateICS(task, memberNames);
+  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href     = url;
+  a.download = `${task.name.replace(/[^\w\sÀ-ž-]/g, "").trim().replace(/\s+/g, "-")}.ics`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

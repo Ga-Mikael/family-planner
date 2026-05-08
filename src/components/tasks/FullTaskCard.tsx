@@ -1,6 +1,6 @@
 import type { Task, Member, Room } from "../../types";
 import { Icon } from "../ui/Icon";
-import { parseMemberIds } from "../../lib/utils";
+import { parseMemberIds, exportToCalendar } from "../../lib/utils";
 import { PRIORITY_CONFIG, RECURRENCE_CONFIG, DAYS_S2 } from "../../lib/constants";
 
 interface FullTaskCardProps {
@@ -24,7 +24,7 @@ export function FullTaskCard({ task, members, rooms, onToggle, onDelete, onEdit 
 
   return (
     <div style={{
-      background: "var(--surface)", borderRadius: 13, padding: "11px 13px",
+      background: "var(--surface)", borderRadius: 20, padding: "12px 14px",
       marginBottom: 8, animation: "fadeUp .2s ease",
       border: `1px solid var(--card-border)`, boxShadow: "var(--card-shadow)",
       borderLeft: `3px solid ${color}`,
@@ -35,8 +35,8 @@ export function FullTaskCard({ task, members, rooms, onToggle, onDelete, onEdit 
         <div
           onClick={() => onToggle(task.id)}
           style={{
-            width: 24, height: 24, borderRadius: "50%",
-            border: `2.5px solid ${task.done ? color : color + "70"}`,
+            width: 24, height: 24, borderRadius: 8,
+            border: `2px solid ${task.done ? color : "var(--border)"}`,
             background: task.done ? color : "transparent",
             display: "flex", alignItems: "center", justifyContent: "center",
             flexShrink: 0, cursor: "pointer", transition: "all .2s",
@@ -70,8 +70,9 @@ export function FullTaskCard({ task, members, rooms, onToggle, onDelete, onEdit 
               </span>
             )}
             {task.dueTime && (
-              <span style={{ fontSize: ".6rem", color: "var(--muted2)", display: "flex", alignItems: "center", gap: 2 }}>
-                <Icon name="clock" size={9} />{task.dueTime}
+              <span style={{ fontSize: ".6rem", color: "var(--accent)", display: "flex", alignItems: "center", gap: 2 }}>
+                <Icon name="clock" size={9} color="var(--accent)" />{task.dueTime}
+                <Icon name="bell" size={8} color="var(--accent)" />
               </span>
             )}
           </div>
@@ -95,6 +96,13 @@ export function FullTaskCard({ task, members, rooms, onToggle, onDelete, onEdit 
           </div>
         )}
 
+        <button
+          onClick={() => exportToCalendar(task, taskMembers.map((m) => m.name))}
+          title="Ajouter au calendrier Apple"
+          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted2)", padding: 4, display: "flex" }}
+        >
+          <Icon name="calendar" size={13} sw={1.8} />
+        </button>
         <button
           onClick={() => onEdit(task)}
           style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted2)", padding: 4, display: "flex" }}

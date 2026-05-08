@@ -148,6 +148,37 @@ export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, se
         </div>
       </div>
 
+      {/* Stats row */}
+      {(() => {
+        // Count tasks over the visible week
+        const weekTasks: { task: Task; dateStr: string }[] = [];
+        for (let i = 0; i < 7; i++) {
+          const d = i as DayIndex;
+          dayItems(d).forEach((t) => weekTasks.push({ task: t, dateStr: toDateStr(getWeekDate(i)) }));
+        }
+        const totalTodo   = weekTasks.filter(({ task: t, dateStr }) => !isTaskDoneOn(t, dateStr)).length;
+        const totalDone   = weekTasks.filter(({ task: t, dateStr }) =>  isTaskDoneOn(t, dateStr)).length;
+        const totalUrgent = weekTasks.filter(({ task: t, dateStr }) => t.priority === "high" && !isTaskDoneOn(t, dateStr)).length;
+        const stats = [
+          { value: totalTodo,   label: "À faire",  color: "var(--violet)"  },
+          { value: totalDone,   label: "Faites",   color: "var(--green)"   },
+          { value: totalUrgent, label: "Urgentes", color: "var(--accent)"  },
+        ];
+        return (
+          <div style={{ display: "flex", gap: 8, padding: "14px 16px 0" }}>
+            {stats.map((s) => (
+              <div key={s.label} style={{
+                flex: 1, borderRadius: 20, padding: "13px 10px", textAlign: "center",
+                background: "var(--surface)", border: "1px solid var(--card-border)", boxShadow: "var(--card-shadow)",
+              }}>
+                <div style={{ fontSize: "1.6rem", fontWeight: 900, letterSpacing: -1, color: s.color, lineHeight: 1 }}>{s.value}</div>
+                <div style={{ fontSize: ".6rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".5px", color: s.color, opacity: .7, marginTop: 3 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
       {/* Alerte weekend */}
       {weekendWarn && weekOff === 0 && (
         <div style={{ margin: "0 16px 8px", background: "var(--warn-bg)", border: "1px solid var(--warn)", borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10 }}>

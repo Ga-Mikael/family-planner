@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import type { Task, Member, Room } from "../../types";
 import { Icon } from "../ui/Icon";
 import { isTaskDoneOn, parseMemberIds } from "../../lib/utils";
-import { PASTEL, RECURRENCE_CONFIG } from "../../lib/constants";
+import { RECURRENCE_CONFIG } from "../../lib/constants";
 
 interface HomeTaskCardProps {
   task: Task;
@@ -22,7 +22,6 @@ export function HomeTaskCard({ task, members, rooms, onToggle, onDelete, onEdit,
   const room = rooms.find((x) => x.id === task.roomId);
 
   const color = primaryMember?.color || room?.color || "#6B7280";
-  const bg    = primaryMember?.avatarBg || PASTEL[2].bg;
   const rec   = RECURRENCE_CONFIG[task.recurrence];
 
   // "fait" pour cette occurrence précise
@@ -49,9 +48,7 @@ export function HomeTaskCard({ task, members, rooms, onToggle, onDelete, onEdit,
   return (
     <div
       style={{
-        display: "flex", alignItems: "stretch", gap: 10,
         marginBottom: 8, cursor: "pointer",
-        opacity: isDone ? .45 : 1,
         animation: "fadeUp .2s ease",
         position: "relative",
       }}
@@ -62,8 +59,8 @@ export function HomeTaskCard({ task, members, rooms, onToggle, onDelete, onEdit,
       {/* Fond vert visible pendant le swipe */}
       {swipeOffset > 0 && (
         <div style={{
-          position: "absolute", left: 44, right: 0, top: 0, bottom: 8,
-          borderRadius: 13, background: "var(--green-bg)",
+          position: "absolute", inset: 0,
+          borderRadius: 20, background: "var(--green-bg)",
           display: "flex", alignItems: "center", paddingLeft: 14,
           opacity: Math.min(swipeOffset / 60, 1),
           pointerEvents: "none",
@@ -71,21 +68,6 @@ export function HomeTaskCard({ task, members, rooms, onToggle, onDelete, onEdit,
           <Icon name="check" size={18} color="var(--green)" sw={2.5} />
         </div>
       )}
-
-      {/* Colonne heure */}
-      <div style={{ width: 44, flexShrink: 0, paddingTop: 10 }}>
-        {task.dueTime ? (
-          <>
-            <div style={{ fontSize: ".8rem", fontWeight: 700, lineHeight: 1 }}>{task.dueTime}</div>
-            <div style={{ fontSize: ".65rem", color: "var(--muted2)", marginTop: 2 }}>1 tâche</div>
-          </>
-        ) : (
-          <>
-            <div style={{ fontSize: ".75rem", fontWeight: 600, color: "var(--muted)", lineHeight: 1 }}>Journée</div>
-            <div style={{ fontSize: ".65rem", color: "var(--muted2)", marginTop: 2 }}>1 tâche</div>
-          </>
-        )}
-      </div>
 
       {/* Carte principale */}
       <div
@@ -97,63 +79,65 @@ export function HomeTaskCard({ task, members, rooms, onToggle, onDelete, onEdit,
           boxShadow: "var(--card-shadow)",
           backdropFilter: "var(--card-blur, none)",
           WebkitBackdropFilter: "var(--card-blur, none)",
-          borderRadius: 13,
-          padding: "10px 12px", display: "flex", alignItems: "center",
-          gap: 10, position: "relative", minHeight: 52,
+          borderRadius: 20,
+          padding: "12px 12px", display: "flex", alignItems: "center",
+          gap: 10, position: "relative", minHeight: 56,
           transform: `translateX(${swipeOffset}px)`,
           transition: swipeOffset === 0 ? "transform .2s ease" : "none",
         }}
       >
-        {/* Checkbox */}
+        {/* Checkbox — rounded square like mockup */}
         <div style={{
-          width: 22, height: 22, borderRadius: "50%",
-          border: `2.5px solid ${isDone ? "var(--green)" : "var(--border)"}`,
+          width: 24, height: 24, borderRadius: 8,
+          border: isDone ? `2px solid var(--green)` : `2px solid var(--border)`,
           background: isDone ? "var(--green)" : "transparent",
           display: "flex", alignItems: "center", justifyContent: "center",
-          flexShrink: 0, color: "white", fontSize: ".7rem", transition: "all .2s",
+          flexShrink: 0, transition: "all .2s",
         }}>
           {isDone && <Icon name="check" size={11} color="white" sw={3} />}
         </div>
 
-        {/* Nom + pièce */}
+        {/* Nom + badges */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
-            fontWeight: 700, fontSize: ".875rem", color,
+            fontWeight: 800, fontSize: ".875rem", color: "var(--text)",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             textDecoration: isDone ? "line-through" : "none",
+            opacity: isDone ? 0.5 : 1,
           }}>
             {task.name}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2, flexWrap: "wrap" }}>
-            {room && (
-              <span style={{ fontSize: ".62rem", fontWeight: 600, color, opacity: .7, display: "flex", alignItems: "center", gap: 2 }}>
-                <Icon name={room.icon} size={10} color={color} />{room.name}
+          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, flexWrap: "wrap" }}>
+            {/* Member badge */}
+            {taskMembers[0] && (
+              <span style={{ fontSize: ".65rem", fontWeight: 800, padding: "2px 7px", borderRadius: 20, background: "var(--accent-bg)", color: "var(--accent)" }}>
+                {taskMembers[0].emoji} {taskMembers[0].name}
               </span>
             )}
+            {/* Room badge */}
+            {room && (
+              <span style={{ fontSize: ".65rem", fontWeight: 800, padding: "2px 7px", borderRadius: 20, background: "var(--warn-bg)", color: "var(--warn)", display: "flex", alignItems: "center", gap: 2 }}>
+                <Icon name={room.icon} size={9} color="var(--warn)" />{room.name}
+              </span>
+            )}
+            {/* Time badge */}
+            {task.dueTime && (
+              <span style={{ fontSize: ".65rem", fontWeight: 700, padding: "2px 7px", borderRadius: 20, background: "var(--soft)", color: "var(--muted)", display: "flex", alignItems: "center", gap: 2 }}>
+                ⏰ {task.dueTime}
+              </span>
+            )}
+            {/* Recurrence badge */}
             {task.recurrence !== "once" && (
-              <span style={{ fontSize: ".6rem", fontWeight: 700, color, opacity: .6 }}>{rec.short}</span>
+              <span style={{ fontSize: ".65rem", fontWeight: 800, padding: "2px 7px", borderRadius: 20, background: "var(--green-bg)", color: "var(--green)" }}>
+                {rec.short}
+              </span>
             )}
           </div>
         </div>
 
-        {/* Avatars membres */}
-        {taskMembers.length > 0 && (
-          <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
-            {taskMembers.map((m) => (
-              <div key={m.id} style={{
-                width: 28, height: 28, borderRadius: "50%", background: "var(--surface)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: "1rem", border: `2px solid ${color}25`,
-              }}>
-                {m.emoji}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Point priorité haute */}
+        {/* Point priorité haute (udot) */}
         {task.priority === "high" && !isDone && (
-          <div style={{ position: "absolute", top: 6, right: 8, width: 6, height: 6, borderRadius: "50%", background: "var(--danger)" }} />
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--accent)", flexShrink: 0 }} />
         )}
 
         {/* Bouton modifier */}
