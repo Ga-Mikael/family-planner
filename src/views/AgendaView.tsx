@@ -89,12 +89,26 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
     setAName(""); setAMembers([]); setATime(""); setARec("once"); setShowAddForm(false);
   };
 
-  // Listes pour les compteurs expandables
-  const doneTasks   = tasks.filter((t) => t.recurrence === "once" ? t.done : (t.doneDates?.length ?? 0) > 0);
-  const urgentTasks = tasks.filter((t) => t.priority === "high" && !t.done && !(t.doneDates?.length));
+  // Tâches du mois affiché (union sur tous les jours du mois)
+  const monthTaskIds = new Set<string>();
+  for (let dom = 1; dom <= daysInMonth; dom++) {
+    tasksByDom(dom).forEach((t) => monthTaskIds.add(t.id));
+  }
+  const monthTasks = tasks.filter((t) => monthTaskIds.has(t.id));
+
+  // Compteurs scoped au mois
+  const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}-`;
+  const doneTasks = monthTasks.filter((t) =>
+    t.recurrence === "once"
+      ? t.done
+      : (t.doneDates ?? []).some((d) => d.startsWith(monthPrefix))
+  );
+  const urgentTasks = monthTasks.filter(
+    (t) => t.priority === "high" && !t.done && !(t.doneDates ?? []).some((d) => d.startsWith(monthPrefix))
+  );
 
   const statItems: Record<string, Task[]> = {
-    all:    tasks,
+    all:    monthTasks,
     done:   doneTasks,
     urgent: urgentTasks,
   };
@@ -354,7 +368,7 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
         {/* Stats du mois — cliquables, s'expandent en bas */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginTop: 18, marginBottom: 0 }}>
           {([
-            { key: "all",    label: "Ce mois",  val: tasks.length,       color: "var(--accent)" },
+            { key: "all",    label: "Ce mois",  val: monthTasks.length,  color: "var(--accent)" },
             { key: "done",   label: "Faites",   val: doneTasks.length,   color: "var(--green)"  },
             { key: "urgent", label: "Urgentes", val: urgentTasks.length, color: "var(--danger)" },
           ] as const).map(({ key, label, val, color }) => {
