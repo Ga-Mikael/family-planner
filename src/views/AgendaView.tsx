@@ -128,16 +128,18 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
         </div>
       </div>
 
-      <div style={{ padding: "12px 16px 0" }}>
+      {/* Calendrier card flottante — chevauchement avec le gradient */}
+      <div style={{ padding: "0 16px", marginTop: -12 }}>
+        <div style={{ background: "var(--surface)", border: "1px solid var(--card-border)", boxShadow: "0 6px 24px rgba(0,0,0,.08)", borderRadius: 24, padding: "16px 14px 12px", backdropFilter: "var(--card-blur, none)", WebkitBackdropFilter: "var(--card-blur, none)" }}>
         {/* En-têtes jours */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2, marginBottom: 4 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2, marginBottom: 6 }}>
           {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
-            <div key={i} style={{ textAlign: "center", fontSize: ".62rem", fontWeight: 700, color: i >= 5 ? "var(--warn)" : "var(--muted2)", padding: "2px 0" }}>{d}</div>
+            <div key={i} style={{ textAlign: "center", fontSize: ".6rem", fontWeight: 800, color: i >= 5 ? "var(--warn)" : "var(--muted2)", padding: "2px 0", textTransform: "uppercase", letterSpacing: ".3px" }}>{d}</div>
           ))}
         </div>
 
         {/* Grille calendrier */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 3, marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 3, marginBottom: 0 }}>
           {Array.from({ length: firstMon }).map((_, i) => <div key={"e" + i} />)}
           {Array.from({ length: daysInMonth }).map((_, i) => {
             const dom = i + 1;
@@ -172,7 +174,10 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
             );
           })}
         </div>
+        </div>{/* /calendar card */}
+      </div>
 
+      <div style={{ padding: "0 16px" }}>
         {/* Détail du jour sélectionné */}
         {detailDay && selDow !== null && (
           <div style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 16, padding: 14, marginBottom: 16, animation: "fadeUp .2s ease" }}>
