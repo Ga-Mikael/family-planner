@@ -1,4 +1,4 @@
-import type { DayIndex, Member, Vacation } from "../types";
+import type { DayIndex, Member, Task, Vacation } from "../types";
 import { PASTEL, VACANCES } from "./constants";
 
 // ─── Jours ─────────────────────────────────────────────────────────────────
@@ -20,6 +20,18 @@ export function getColorIdx(str: string): number {
   for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % PASTEL.length;
   return Math.abs(h) % PASTEL.length;
 }
+
+// ─── État "fait" par occurrence ────────────────────────────────────────────
+
+/**
+ * Retourne si une tâche est "faite" pour une date donnée.
+ * - Tâches "once" : utilise le champ `done` classique.
+ * - Tâches récurrentes : vérifie si `dateStr` est dans `doneDates`.
+ */
+export const isTaskDoneOn = (task: Task, dateStr: string): boolean => {
+  if (task.recurrence === "once") return task.done;
+  return task.doneDates?.includes(dateStr) ?? false;
+};
 
 // ─── Membres multiples ─────────────────────────────────────────────────────
 

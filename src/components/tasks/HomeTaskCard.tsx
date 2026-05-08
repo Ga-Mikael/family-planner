@@ -1,19 +1,22 @@
+import { useRef, useState } from "react";
 import type { Task, Member, Room } from "../../types";
 import { Icon } from "../ui/Icon";
-import { parseMemberIds } from "../../lib/utils";
+import { isTaskDoneOn, parseMemberIds } from "../../lib/utils";
 import { PASTEL, RECURRENCE_CONFIG } from "../../lib/constants";
 
 interface HomeTaskCardProps {
   task: Task;
   members: Member[];
   rooms: Room[];
-  onToggle: (id: string) => void;
+  onToggle: (id: string, dateStr?: string) => void;
   onDelete: (id: string) => void;
   onEdit: (t: Task) => void;
+  /** Date de l'occurrence affichée — pour valider uniquement ce jour-là */
+  dateStr?: string;
 }
 
-export function HomeTaskCard({ task, members, rooms, onToggle, onDelete, onEdit }: HomeTaskCardProps) {
-  const memberIds = parseMemberIds(task.memberId);
+export function HomeTaskCard({ task, members, rooms, onToggle, onDelete, onEdit, dateStr }: HomeTaskCardProps) {
+  const memberIds   = parseMemberIds(task.memberId);
   const taskMembers = memberIds.map((id) => members.find((x) => x.id === id)).filter(Boolean) as Member[];
   const primaryMember = taskMembers[0];
   const room = rooms.find((x) => x.id === task.roomId);
@@ -22,16 +25,53 @@ export function HomeTaskCard({ task, members, rooms, onToggle, onDelete, onEdit 
   const bg    = primaryMember?.avatarBg || PASTEL[2].bg;
   const rec   = RECURRENCE_CONFIG[task.recurrence];
 
+  // "fait" pour cette occurrence précise
+  const isDone = dateStr ? isTaskDoneOn(task, dateStr) : task.done;
+
+  // ── Swipe pour valider ───────────────────────────────────────────────────
+  const touchStartX = useRef<number | null>(null);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const delta = e.touches[0].clientX - touchStartX.current;
+    if (delta > 0) setSwipeOffset(Math.min(delta, 90));
+  };
+  const onTouchEnd = () => {
+    if (swipeOffset > 60) onToggle(task.id, dateStr);
+    setSwipeOffset(0);
+    touchStartX.current = null;
+  };
+
   return (
     <div
-      onClick={() => onToggle(task.id)}
       style={{
         display: "flex", alignItems: "stretch", gap: 10,
         marginBottom: 8, cursor: "pointer",
-        opacity: task.done ? .45 : 1,
+        opacity: isDone ? .45 : 1,
         animation: "fadeUp .2s ease",
+        position: "relative",
       }}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
     >
+      {/* Fond vert visible pendant le swipe */}
+      {swipeOffset > 0 && (
+        <div style={{
+          position: "absolute", left: 44, right: 0, top: 0, bottom: 8,
+          borderRadius: 13, background: "#D1FAE5",
+          display: "flex", alignItems: "center", paddingLeft: 14,
+          opacity: Math.min(swipeOffset / 60, 1),
+          pointerEvents: "none",
+        }}>
+          <Icon name="check" size={18} color="#059669" sw={2.5} />
+        </div>
+      )}
+
       {/* Colonne heure */}
       <div style={{ width: 44, flexShrink: 0, paddingTop: 10 }}>
         {task.dueTime ? (
@@ -48,20 +88,25 @@ export function HomeTaskCard({ task, members, rooms, onToggle, onDelete, onEdit 
       </div>
 
       {/* Carte principale */}
-      <div style={{
-        flex: 1, background: bg, borderRadius: 13,
-        padding: "10px 12px", display: "flex", alignItems: "center",
-        gap: 10, position: "relative", minHeight: 52,
-      }}>
+      <div
+        onClick={() => onToggle(task.id, dateStr)}
+        style={{
+          flex: 1, background: bg, borderRadius: 13,
+          padding: "10px 12px", display: "flex", alignItems: "center",
+          gap: 10, position: "relative", minHeight: 52,
+          transform: `translateX(${swipeOffset}px)`,
+          transition: swipeOffset === 0 ? "transform .2s ease" : "none",
+        }}
+      >
         {/* Checkbox */}
         <div style={{
           width: 22, height: 22, borderRadius: "50%",
-          border: `2.5px solid ${task.done ? color : color + "60"}`,
-          background: task.done ? color : "transparent",
+          border: `2.5px solid ${isDone ? color : color + "60"}`,
+          background: isDone ? color : "transparent",
           display: "flex", alignItems: "center", justifyContent: "center",
           flexShrink: 0, color: "white", fontSize: ".7rem", transition: "all .2s",
         }}>
-          {task.done && <Icon name="check" size={11} color="white" sw={3} />}
+          {isDone && <Icon name="check" size={11} color="white" sw={3} />}
         </div>
 
         {/* Nom + pièce */}
@@ -69,7 +114,7 @@ export function HomeTaskCard({ task, members, rooms, onToggle, onDelete, onEdit 
           <div style={{
             fontWeight: 700, fontSize: ".875rem", color,
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            textDecoration: task.done ? "line-through" : "none",
+            textDecoration: isDone ? "line-through" : "none",
           }}>
             {task.name}
           </div>
@@ -101,7 +146,7 @@ export function HomeTaskCard({ task, members, rooms, onToggle, onDelete, onEdit 
         )}
 
         {/* Point priorité haute */}
-        {task.priority === "high" && !task.done && (
+        {task.priority === "high" && !isDone && (
           <div style={{ position: "absolute", top: 6, right: 8, width: 6, height: 6, borderRadius: "50%", background: "var(--danger)" }} />
         )}
 

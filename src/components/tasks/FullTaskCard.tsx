@@ -7,7 +7,7 @@ interface FullTaskCardProps {
   task: Task;
   members: Member[];
   rooms: Room[];
-  onToggle: (id: string) => void;
+  onToggle: (id: string, dateStr?: string) => void;
   onDelete: (id: string) => void;
   onEdit: (t: Task) => void;
 }

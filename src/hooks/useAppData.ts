@@ -106,8 +106,26 @@ export function useAppData(session: Session | null) {
     setTasks((p) => p.map((x) => x.id === t.id ? t : x));
     const { error } = await supabase.from("tasks").update(fromTask(t, uid())).eq("id", t.id); logErr("updateTask", error);
   };
-  const toggleTask = async (id: string) => {
+  const toggleTask = async (id: string, dateStr?: string) => {
     const task = tasks.find((t) => t.id === id); if (!task) return;
+
+    // Tâches récurrentes : on valide uniquement l'occurrence du jour donné
+    if (task.recurrence !== "once" && dateStr) {
+      const dates   = task.doneDates ?? [];
+      const isDone  = dates.includes(dateStr);
+      const newDates = isDone
+        ? dates.filter((d) => d !== dateStr)
+        : [...dates, dateStr];
+      setTasks((p) => p.map((t) => t.id === id ? { ...t, doneDates: newDates } : t));
+      if (!isDone) burst();
+      const { error } = await supabase.from("tasks")
+        .update({ done_dates: newDates.length ? JSON.stringify(newDates) : null })
+        .eq("id", id);
+      logErr("toggleTask", error);
+      return;
+    }
+
+    // Tâche "une fois" ou basculement global
     const done = !task.done;
     setTasks((p) => p.map((t) => t.id === id ? { ...t, done } : t));
     if (done) burst();

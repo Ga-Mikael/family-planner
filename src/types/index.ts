@@ -1,7 +1,7 @@
 // ─── Types primitifs ───────────────────────────────────────────────────────
 export type DayIndex   = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 export type Priority   = "low" | "med" | "high";
-export type Recurrence = "once" | "daily" | "weekly" | "monthly";
+export type Recurrence = "once" | "daily" | "weekly" | "monthly" | "annual";
 export type TabId      = "home" | "tasks" | "agenda" | "schedule" | "family";
 
 export type IconName =
@@ -39,7 +39,8 @@ export interface Task {
   done: boolean;
   note?: string;
   dueTime?: string;
-  dueDate?: string; // "YYYY-MM-DD" — date précise pour les tâches recurrence:"once"
+  dueDate?: string;    // "YYYY-MM-DD" — date précise pour les tâches recurrence:"once"
+  doneDates?: string[]; // "YYYY-MM-DD[]" — occurrences validées pour les tâches récurrentes
 }
 
 export interface Grocery {
@@ -55,6 +56,7 @@ export interface Reminder {
   time: string;
   day: DayIndex;
   emoji: string;
+  date?: string; // "YYYY-MM-DD" — rappel unique à une date précise (optionnel)
 }
 
 export type Meals = Record<DayIndex, string>;
@@ -94,7 +96,7 @@ export type ViewProps = {
   setWeekOff: (n: number) => void;
   addTask: (t: Task) => void;
   deleteTask: (id: string) => void;
-  toggleTask: (id: string) => void;
+  toggleTask: (id: string, dateStr?: string) => void;
   updateTask: (t: Task) => void;
   addGrocery: (g: Omit<Grocery, "id">) => void;
   toggleGroc: (id: string) => void;
