@@ -2,11 +2,33 @@
 //   - les tâches du jour ayant une heure (dueTime)
 //   - les rappels du jour (reminders)
 // Nécessite que Notification.permission === "granted"
-// Les notifications sont re-programmées à chaque changement de tasks/reminders.
+// Utilise registration.showNotification() si SW dispo (requis sur iOS PWA),
+// sinon fallback sur new Notification().
+// Re-programmées à chaque changement de tasks/reminders.
 
 import { useEffect } from "react";
 import type { Task, Reminder } from "../types";
 import { todayIdx, toDateStr, isTaskDoneOn } from "../lib/utils";
+
+async function fireNotif(title: string, body: string) {
+  const opts: NotificationOptions = {
+    body,
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+  };
+  // Prefer SW path — required on iOS standalone PWA, works everywhere.
+  if ("serviceWorker" in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      if (reg) {
+        reg.showNotification(title, opts);
+        return;
+      }
+    } catch { /* fall through */ }
+  }
+  // Fallback main-thread notification (desktop browsers, non-PWA tabs).
+  try { new Notification(title, opts); } catch { /* permission likely denied */ }
+}
 
 export function useNotifications(tasks: Task[], reminders: Reminder[]) {
   useEffect(() => {
@@ -23,9 +45,7 @@ export function useNotifications(tasks: Task[], reminders: Reminder[]) {
       const delay  = fireAt.getTime() - now.getTime();
       // Ne planifie que si l'heure est dans le futur (dans les prochaines 24h)
       if (delay > 0 && delay < 24 * 60 * 60 * 1000) {
-        timeouts.push(
-          setTimeout(() => new Notification(title, { body, icon: "/favicon.svg" }), delay)
-        );
+        timeouts.push(setTimeout(() => { void fireNotif(title, body); }, delay));
       }
     };
 
