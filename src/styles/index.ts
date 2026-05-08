@@ -134,6 +134,38 @@ input, select, textarea, button { font-family: var(--font-body); }
   background: transparent;
 }
 
+.fp-foyer-header {
+  position: relative;
+  padding: 52px 18px 22px;
+  transition: background .5s;
+  overflow: hidden;
+}
+:root .fp-foyer-header {
+  background: linear-gradient(155deg, #FFE8CC 0%, #FFDDE9 100%);
+}
+:root .fp-foyer-header::before {
+  content: "";
+  position: absolute;
+  top: -40px; right: -30px;
+  width: 180px; height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,179,71,.3) 0%, transparent 70%);
+  pointer-events: none;
+}
+:root .fp-foyer-header::after {
+  content: "";
+  position: absolute;
+  bottom: -50px; left: -40px;
+  width: 160px; height: 160px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,123,181,.3) 0%, transparent 70%);
+  pointer-events: none;
+}
+[data-theme="dark"] .fp-foyer-header { background: transparent; }
+[data-theme="dark"] .fp-foyer-header::before,
+[data-theme="dark"] .fp-foyer-header::after { display: none; }
+.fp-foyer-header > * { position: relative; z-index: 1; }
+
 .fp-planning-header {
   position: relative;
   padding: 52px 18px 26px;
