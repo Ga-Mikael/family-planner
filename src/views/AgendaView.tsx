@@ -105,21 +105,26 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
       onTouchStart={onMonthTouchStart}
       onTouchEnd={onMonthTouchEnd}
     >
-      {/* Header */}
-      <div style={{ padding: "16px 20px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--text)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Icon name="calendar" size={18} color="white" sw={2} />
+      {/* Header gradient */}
+      <div className="fp-agenda-header">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <button onClick={() => { setViewDate(new Date(year, month - 1, 1)); setDetailDay(null); }} style={navBtn}>
+            <Icon name="chevronLeft" size={16} />
+          </button>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: ".68rem", fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 3 }}>
+              {tasks.length} tâche{tasks.length !== 1 ? "s" : ""} ce mois
+            </div>
+            <h1 style={{ fontWeight: 900, fontSize: "1.35rem", lineHeight: 1, color: "var(--text)", letterSpacing: "-.3px" }}>
+              {MONTHS[month]} {year}
+            </h1>
           </div>
-          <div>
-            <h1 style={{ fontWeight: 800, fontSize: "1.2rem", lineHeight: 1 }}>{MONTHS[month]} {year}</h1>
-            <div style={{ fontSize: ".65rem", color: "var(--muted)", marginTop: 2 }}>{daysInMonth} jours · {tasks.length} tâches</div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={() => { setViewDate(new Date(today.getFullYear(), today.getMonth(), 1)); setDetailDay(today.getDate()); }} style={{ ...navBtn, fontSize: ".65rem", fontWeight: 700, padding: "0 8px", width: "auto" }}>Auj.</button>
+            <button onClick={() => { setViewDate(new Date(year, month + 1, 1)); setDetailDay(null); }} style={navBtn}>
+              <Icon name="chevronRight" size={16} />
+            </button>
           </div>
-        </div>
-        <div style={{ display: "flex", gap: 6 }}>
-          <button onClick={() => { setViewDate(new Date(year, month - 1, 1)); setDetailDay(null); }} style={navBtn}><Icon name="chevronLeft" size={16} /></button>
-          <button onClick={() => { setViewDate(new Date(today.getFullYear(), today.getMonth(), 1)); setDetailDay(today.getDate()); }} style={{ ...navBtn, fontSize: ".65rem", fontWeight: 700, padding: "0 8px", width: "auto" }}>Auj.</button>
-          <button onClick={() => { setViewDate(new Date(year, month + 1, 1)); setDetailDay(null); }} style={navBtn}><Icon name="chevronRight" size={16} /></button>
         </div>
       </div>
 

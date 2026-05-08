@@ -134,6 +134,17 @@ input, select, textarea, button { font-family: var(--font-body); }
   background: transparent;
 }
 
+.fp-agenda-header {
+  padding: 52px 18px 18px;
+  transition: background .5s;
+}
+:root .fp-agenda-header {
+  background: linear-gradient(155deg, #EDE8FF 0%, #FFE8CC 100%);
+}
+[data-theme="dark"] .fp-agenda-header {
+  background: transparent;
+}
+
 .fp-tab-bar {
   transition: background .4s;
 }
