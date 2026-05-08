@@ -19,8 +19,24 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
   const [aTime,       setATime]       = useState("");
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
-  // Popup compteur de tâches
-  const [statsPopup, setStatsPopup] = useState<{ title: string; items: Task[] } | null>(null);
+  // Compteurs : section expandée en bas (null = fermé)
+  const [expandedStat, setExpandedStat] = useState<"all" | "done" | "urgent" | null>(null);
+
+  // Swipe pour changer de mois
+  const monthSwipeStart = useRef<{ x: number; y: number } | null>(null);
+  const onMonthTouchStart = (e: React.TouchEvent) => {
+    monthSwipeStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  };
+  const onMonthTouchEnd = (e: React.TouchEvent) => {
+    if (!monthSwipeStart.current) return;
+    const dx = e.changedTouches[0].clientX - monthSwipeStart.current.x;
+    const dy = e.changedTouches[0].clientY - monthSwipeStart.current.y;
+    monthSwipeStart.current = null;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+      setViewDate(new Date(year, dx < 0 ? month + 1 : month - 1, 1));
+      setDetailDay(null);
+    }
+  };
 
   // Swipe par tâche dans le panneau détail
   const swipeStartX  = useRef<Record<string, number>>({});
@@ -73,12 +89,22 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
     setAName(""); setAMembers([]); setATime(""); setARec("once"); setShowAddForm(false);
   };
 
-  // Stats pour la popup
-  const doneTasks    = tasks.filter((t) => t.recurrence === "once" ? t.done : (t.doneDates?.length ?? 0) > 0);
-  const urgentTasks  = tasks.filter((t) => t.priority === "high" && !t.done && !(t.doneDates?.length));
+  // Listes pour les compteurs expandables
+  const doneTasks   = tasks.filter((t) => t.recurrence === "once" ? t.done : (t.doneDates?.length ?? 0) > 0);
+  const urgentTasks = tasks.filter((t) => t.priority === "high" && !t.done && !(t.doneDates?.length));
+
+  const statItems: Record<string, Task[]> = {
+    all:    tasks,
+    done:   doneTasks,
+    urgent: urgentTasks,
+  };
 
   return (
-    <div style={{ animation: "fadeUp .35s ease" }}>
+    <div
+      style={{ animation: "fadeUp .35s ease" }}
+      onTouchStart={onMonthTouchStart}
+      onTouchEnd={onMonthTouchEnd}
+    >
       {/* Header */}
       <div style={{ padding: "16px 20px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -91,9 +117,9 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
           </div>
         </div>
         <div style={{ display: "flex", gap: 6 }}>
-          <button onClick={() => setViewDate(new Date(year, month - 1, 1))} style={navBtn}><Icon name="chevronLeft" size={16} /></button>
+          <button onClick={() => { setViewDate(new Date(year, month - 1, 1)); setDetailDay(null); }} style={navBtn}><Icon name="chevronLeft" size={16} /></button>
           <button onClick={() => { setViewDate(new Date(today.getFullYear(), today.getMonth(), 1)); setDetailDay(today.getDate()); }} style={{ ...navBtn, fontSize: ".65rem", fontWeight: 700, padding: "0 8px", width: "auto" }}>Auj.</button>
-          <button onClick={() => setViewDate(new Date(year, month + 1, 1))} style={navBtn}><Icon name="chevronRight" size={16} /></button>
+          <button onClick={() => { setViewDate(new Date(year, month + 1, 1)); setDetailDay(null); }} style={navBtn}><Icon name="chevronRight" size={16} /></button>
         </div>
       </div>
 
@@ -123,7 +149,7 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
             return (
               <button
                 key={dom}
-                onClick={() => setDetailDay(isSel ? null : dom)}
+                onClick={() => { setDetailDay(isSel ? null : dom); setExpandedStat(null); }}
                 style={{ border: `1.5px solid ${isSel ? "var(--text)" : isToday ? "var(--accent)" : "transparent"}`, borderRadius: 10, padding: "5px 2px 4px", background: isSel ? "var(--text)" : isToday ? "var(--accent-bg)" : "transparent", cursor: "pointer", textAlign: "center", transition: "all .15s", position: "relative" }}
               >
                 <div style={{ fontSize: ".88rem", fontWeight: isToday || isSel ? 800 : 500, color: isSel ? "white" : isToday ? "var(--accent)" : isWe ? "#D97706" : "var(--text)", lineHeight: 1.2 }}>{dom}</div>
@@ -200,16 +226,11 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
                     ))}
                   </select>
                 </div>
-                {/* Sélecteur de récurrence avec option annuelle */}
                 <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                   {(["once", "daily", "weekly", "monthly", "annual"] as Recurrence[]).map((rec) => {
                     const active = aRec === rec;
                     return (
-                      <button
-                        key={rec}
-                        onClick={() => setARec(rec)}
-                        style={{ flex: "1 1 0", minWidth: 52, padding: "6px 4px", border: `1.5px solid ${active ? "var(--text)" : "var(--border)"}`, borderRadius: 8, background: active ? "var(--text)" : "var(--soft)", color: active ? "white" : "var(--muted)", fontSize: ".63rem", fontWeight: 700, cursor: "pointer" }}
-                      >
+                      <button key={rec} onClick={() => setARec(rec)} style={{ flex: "1 1 0", minWidth: 52, padding: "6px 4px", border: `1.5px solid ${active ? "var(--text)" : "var(--border)"}`, borderRadius: 8, background: active ? "var(--text)" : "var(--soft)", color: active ? "white" : "var(--muted)", fontSize: ".63rem", fontWeight: 700, cursor: "pointer" }}>
                         {RECURRENCE_CONFIG[rec].short}
                       </button>
                     );
@@ -229,8 +250,8 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
                     const tMs   = tMids.map((id) => members.find((x) => x.id === id)).filter(Boolean) as typeof members;
                     const tM    = tMs[0], r = rooms.find((x) => x.id === t.roomId);
                     const col   = tM?.color || r?.color || "#6B7280", pc = PRIORITY_CONFIG[t.priority];
-                    const taskDone   = isTaskDoneOn(t, selDateStr);
-                    const swipeOff   = swipeMap[t.id] ?? 0;
+                    const taskDone = isTaskDoneOn(t, selDateStr);
+                    const swipeOff = swipeMap[t.id] ?? 0;
                     return (
                       <div
                         key={t.id}
@@ -239,19 +260,13 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
                         onTouchMove={(e)  => onTaskTouchMove(t.id, e)}
                         onTouchEnd={()    => onTaskTouchEnd(t.id)}
                       >
-                        {/* Fond vert swipe */}
                         {swipeOff > 0 && (
                           <div style={{ position: "absolute", inset: 0, background: "#D1FAE5", display: "flex", alignItems: "center", paddingLeft: 12, opacity: Math.min(swipeOff / 60, 1), pointerEvents: "none", borderRadius: 10 }}>
                             <Icon name="check" size={16} color="#059669" sw={2.5} />
                           </div>
                         )}
-                        <div
-                          style={{ background: "white", borderRadius: 10, padding: "9px 12px", display: "flex", alignItems: "center", gap: 9, borderLeft: `3px solid ${col}`, opacity: taskDone ? 0.55 : 1, transform: `translateX(${swipeOff}px)`, transition: swipeOff === 0 ? "transform .2s ease" : "none" }}
-                        >
-                          <div
-                            onClick={() => toggleTask(t.id, selDateStr)}
-                            style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${taskDone ? col : col + "60"}`, background: taskDone ? col : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", transition: "all .2s" }}
-                          >
+                        <div style={{ background: "white", borderRadius: 10, padding: "9px 12px", display: "flex", alignItems: "center", gap: 9, borderLeft: `3px solid ${col}`, opacity: taskDone ? 0.55 : 1, transform: `translateX(${swipeOff}px)`, transition: swipeOff === 0 ? "transform .2s ease" : "none" }}>
+                          <div onClick={() => toggleTask(t.id, selDateStr)} style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${taskDone ? col : col + "60"}`, background: taskDone ? col : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", transition: "all .2s" }}>
                             {taskDone && <Icon name="check" size={9} color="white" sw={3} />}
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
@@ -281,67 +296,57 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
           </div>
         )}
 
-        {/* Stats du mois — cliquables */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 20 }}>
-          {[
-            { label: "Ce mois",  val: tasks.length,        color: "var(--accent)",  items: tasks,        title: "Toutes les tâches du mois" },
-            { label: "Faites",   val: doneTasks.length,    color: "var(--green)",   items: doneTasks,    title: "Tâches faites" },
-            { label: "Urgentes", val: urgentTasks.length,  color: "var(--danger)",  items: urgentTasks,  title: "Tâches urgentes restantes" },
-          ].map(({ label, val, color, items, title }) => (
-            <div
-              key={label}
-              onClick={() => items.length > 0 && setStatsPopup({ title, items })}
-              style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 12, padding: "10px", textAlign: "center", cursor: items.length > 0 ? "pointer" : "default", transition: "opacity .15s", userSelect: "none" }}
-            >
-              <div style={{ fontWeight: 800, fontSize: "1.4rem", color, lineHeight: 1 }}>{val}</div>
-              <div style={{ fontSize: ".62rem", color: "var(--muted)", marginTop: 3, fontWeight: 600 }}>{label}</div>
-            </div>
-          ))}
+        {/* Stats du mois — cliquables, s'expandent en bas */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 0 }}>
+          {([
+            { key: "all",    label: "Ce mois",  val: tasks.length,       color: "var(--accent)" },
+            { key: "done",   label: "Faites",   val: doneTasks.length,   color: "var(--green)"  },
+            { key: "urgent", label: "Urgentes", val: urgentTasks.length, color: "var(--danger)" },
+          ] as const).map(({ key, label, val, color }) => {
+            const isOpen = expandedStat === key;
+            return (
+              <div
+                key={key}
+                onClick={() => setExpandedStat(isOpen ? null : key)}
+                style={{ background: isOpen ? "var(--text)" : "var(--soft)", border: `1px solid ${isOpen ? "var(--text)" : "var(--border)"}`, borderRadius: isOpen ? "12px 12px 0 0" : 12, padding: "10px", textAlign: "center", cursor: val > 0 ? "pointer" : "default", transition: "all .2s", userSelect: "none" }}
+              >
+                <div style={{ fontWeight: 800, fontSize: "1.4rem", color: isOpen ? "white" : color, lineHeight: 1 }}>{val}</div>
+                <div style={{ fontSize: ".62rem", color: isOpen ? "rgba(255,255,255,.7)" : "var(--muted)", marginTop: 3, fontWeight: 600 }}>{label}</div>
+              </div>
+            );
+          })}
         </div>
-      </div>
 
-      {/* Popup liste de tâches (compteurs) */}
-      {statsPopup && (
-        <div
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", zIndex: 1000, display: "flex", alignItems: "flex-end" }}
-          onClick={() => setStatsPopup(null)}
-        >
-          <div
-            style={{ width: "100%", background: "var(--bg)", borderRadius: "20px 20px 0 0", padding: "20px 16px 40px", maxHeight: "75vh", overflowY: "auto", animation: "fadeUp .2s ease" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <h3 style={{ fontWeight: 800, fontSize: ".95rem" }}>{statsPopup.title} ({statsPopup.items.length})</h3>
-              <button onClick={() => setStatsPopup(null)} style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid var(--border)", background: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Icon name="x" size={13} />
-              </button>
-            </div>
-            {statsPopup.items.map((t) => {
+        {/* Section expandée inline sous les compteurs */}
+        {expandedStat && statItems[expandedStat].length > 0 && (
+          <div style={{ background: "var(--soft)", border: "1px solid var(--border)", borderTop: "none", borderRadius: "0 0 12px 12px", padding: "12px 12px 14px", marginBottom: 20, animation: "fadeUp .2s ease", maxHeight: 320, overflowY: "auto" }}>
+            {statItems[expandedStat].map((t) => {
               const m   = members.find((x) => t.memberId.split(",").includes(x.id));
               const r   = rooms.find((x) => x.id === t.roomId);
               const col = m?.color || r?.color || "#6B7280";
               const pc  = PRIORITY_CONFIG[t.priority];
               const isDone = t.recurrence === "once" ? t.done : (t.doneDates?.length ?? 0) > 0;
               return (
-                <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--soft)", borderRadius: 12, marginBottom: 8, borderLeft: `3px solid ${col}`, opacity: isDone ? 0.5 : 1 }}>
-                  <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${isDone ? col : col + "50"}`, background: isDone ? col : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    {isDone && <Icon name="check" size={10} color="white" sw={3} />}
+                <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "white", borderRadius: 10, marginBottom: 6, borderLeft: `3px solid ${col}`, opacity: isDone ? 0.5 : 1 }}>
+                  <div style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${isDone ? col : col + "50"}`, background: isDone ? col : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    {isDone && <Icon name="check" size={9} color="white" sw={3} />}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: ".85rem", color: col, textDecoration: isDone ? "line-through" : "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</div>
-                    <div style={{ display: "flex", gap: 5, marginTop: 2 }}>
-                      <span style={{ fontSize: ".6rem", fontWeight: 700, padding: "1px 5px", borderRadius: 99, background: pc.bg, color: pc.color }}>{pc.label}</span>
-                      {r && <span style={{ fontSize: ".6rem", color: "var(--muted2)" }}>{r.name}</span>}
-                      <span style={{ fontSize: ".6rem", color: col, opacity: .7, fontWeight: 600 }}>{RECURRENCE_CONFIG[t.recurrence].short}</span>
+                    <div style={{ fontWeight: 600, fontSize: ".8rem", color: col, textDecoration: isDone ? "line-through" : "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</div>
+                    <div style={{ display: "flex", gap: 4, marginTop: 2 }}>
+                      <span style={{ fontSize: ".58rem", fontWeight: 700, padding: "1px 4px", borderRadius: 99, background: pc.bg, color: pc.color }}>{pc.label}</span>
+                      {r && <span style={{ fontSize: ".58rem", color: "var(--muted2)" }}>{r.name}</span>}
+                      <span style={{ fontSize: ".58rem", color: col, opacity: .65, fontWeight: 600 }}>{RECURRENCE_CONFIG[t.recurrence].short}</span>
                     </div>
                   </div>
-                  {m && <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>{m.emoji}</span>}
+                  {m && <span style={{ fontSize: "1rem", flexShrink: 0 }}>{m.emoji}</span>}
                 </div>
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+        {!expandedStat && <div style={{ marginBottom: 20 }} />}
+      </div>
 
       {editingTask && (
         <EditTaskModal task={editingTask} members={members} rooms={rooms} onSave={updateTask} onClose={() => setEditingTask(null)} />

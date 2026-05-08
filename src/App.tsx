@@ -5,6 +5,7 @@ import { supabase } from "./lib/supabase";
 import { todayIdx, isWeekend } from "./lib/utils";
 import { GLOBAL_CSS } from "./styles";
 import { useAppData } from "./hooks/useAppData";
+import { useNotifications } from "./hooks/useNotifications";
 import { LoadingScreen }    from "./components/LoadingScreen";
 import { LoginScreen }      from "./components/LoginScreen";
 import { FamilySetupScreen } from "./components/FamilySetupScreen";
@@ -39,6 +40,7 @@ export default function App() {
   }, []);
 
   const data = useAppData(session);
+  useNotifications(data.tasks, data.reminders);
 
   if (!authReady)       return <LoadingScreen message="Initialisation…" />;
   if (!session)         return <LoginScreen />;
