@@ -89,7 +89,7 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
         {/* Tab bar — pill style */}
         <div style={{ display: "flex", gap: 6, padding: 4, borderRadius: 14, background: "rgba(0,0,0,.05)", marginBottom: 0 }}
              className="fp-tab-bar">
-          {([["tasks", "📝 Tâches"], ["reminders", "🔔 Rappels"]] as const).map(([id, label]) => {
+          {([["tasks", "Tâches"], ["reminders", "Rappels"]] as const).map(([id, label]) => {
             const active = activeTab === id;
             return (
               <button
