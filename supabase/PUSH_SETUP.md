@@ -52,14 +52,23 @@ Link the project (one-time):
 supabase link --project-ref jnpiblsxmqulrlqhdzji
 ```
 
+Generate a CRON_SECRET (random, never committed):
+
+```bash
+openssl rand -hex 32
+```
+
 Set secrets — replace the placeholders with your actual keys (paste from password manager):
 
 ```bash
 supabase secrets set \
   VAPID_PRIVATE_KEY="<your privateKey>" \
   VAPID_PUBLIC_KEY="<your publicKey>" \
-  VAPID_SUBJECT="mailto:you@example.com"
+  VAPID_SUBJECT="mailto:you@example.com" \
+  CRON_SECRET="<your random hex secret>"
 ```
+
+Store the CRON_SECRET in your password manager — you need it for the cron job below.
 
 (`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` auto-injected.)
 
@@ -73,7 +82,7 @@ supabase functions deploy notify-cron
 
 Supabase Dashboard → Database → Extensions → enable `pg_cron` and `pg_net` (usually pre-enabled).
 
-Then SQL Editor — replace `YOUR_ANON_KEY_HERE` with the project's anon key:
+Then SQL Editor — replace `YOUR_ANON_KEY_HERE` with the project's anon key, and `YOUR_CRON_SECRET_HERE` with the secret you generated above:
 
 ```sql
 select cron.schedule(
@@ -84,12 +93,15 @@ select cron.schedule(
     url := 'https://jnpiblsxmqulrlqhdzji.supabase.co/functions/v1/notify-cron',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'Authorization', 'Bearer YOUR_ANON_KEY_HERE'
+      'Authorization', 'Bearer YOUR_ANON_KEY_HERE',
+      'X-Cron-Secret', 'YOUR_CRON_SECRET_HERE'
     )
   ) as request_id;
   $$
 );
 ```
+
+The function rejects requests without `X-Cron-Secret`. Without this, anyone with the project anon key (it's in your frontend bundle) could spam the function.
 
 To inspect / unschedule:
 ```sql

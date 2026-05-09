@@ -12,6 +12,7 @@ const SERVICE_ROLE  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const VAPID_PUBLIC  = Deno.env.get("VAPID_PUBLIC_KEY")!;
 const VAPID_PRIVATE = Deno.env.get("VAPID_PRIVATE_KEY")!;
 const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT") ?? "mailto:admin@example.com";
+const CRON_SECRET   = Deno.env.get("CRON_SECRET") ?? "";
 
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
 
@@ -249,14 +250,40 @@ function serializeError(err: unknown): Record<string, unknown> {
   return { raw: String(err) };
 }
 
-Deno.serve(async () => {
+// Constant-time string compare to mitigate timing leaks on the secret check.
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < a.length; i++) mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return mismatch === 0;
+}
+
+Deno.serve(async (req) => {
+  // Auth: require X-Cron-Secret header matching the CRON_SECRET env.
+  // The Supabase gateway already requires Authorization: Bearer <anon>, but
+  // anon is exposed to clients — this second factor blocks anyone who only
+  // knows the function URL + anon key.
+  if (!CRON_SECRET) {
+    return new Response(JSON.stringify({ ok: false, error: "CRON_SECRET not configured" }), {
+      status: 500, headers: { "Content-Type": "application/json" },
+    });
+  }
+  const provided = req.headers.get("x-cron-secret") ?? "";
+  if (!safeEqual(provided, CRON_SECRET)) {
+    return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+      status: 401, headers: { "Content-Type": "application/json" },
+    });
+  }
+
   try {
     return await run();
   } catch (err) {
     console.error("run failed", err);
-    return new Response(JSON.stringify({ ok: false, error: serializeError(err) }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    // Production-safe response: hide internals; full error stays in logs.
+    const isError = err instanceof Error;
+    return new Response(JSON.stringify({
+      ok: false,
+      error: isError ? err.message : "internal error",
+    }), { status: 500, headers: { "Content-Type": "application/json" } });
   }
 });
