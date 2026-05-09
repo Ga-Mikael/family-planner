@@ -3,7 +3,6 @@ import type { Session } from "@supabase/supabase-js";
 import type { TabId } from "./types";
 import { supabase } from "./lib/supabase";
 import { todayIdx, isWeekend } from "./lib/utils";
-import { GLOBAL_CSS } from "./styles";
 import { useAppData } from "./hooks/useAppData";
 import { useNotifications } from "./hooks/useNotifications";
 import { useTheme } from "./hooks/useTheme";
@@ -26,14 +25,6 @@ export default function App() {
   const [tab,       setTab]       = useState<TabId>("home");
   const [selDay,    setSelDay]    = useState<DayIndex>(todayIdx());
   const [weekOff,   setWeekOff]   = useState(0);
-
-  // Inject CSS once (StrictMode-safe via empty dep array + cleanup).
-  useEffect(() => {
-    const el = document.createElement("style");
-    el.textContent = GLOBAL_CSS;
-    document.head.appendChild(el);
-    return () => el.remove();
-  }, []);
 
   // Auth
   useEffect(() => {
