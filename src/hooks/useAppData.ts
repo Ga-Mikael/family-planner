@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import type { Member, Task, Grocery, Meals, Reminder, Room, DayIndex, ConfettiPiece } from "../types";
@@ -104,15 +105,78 @@ export function useAppData(session: Session | null) {
   useEffect(() => {
     if (!session?.user) return;
     const userId = session.user.id;
+
+    // Apply a single row change in-place rather than refetching the whole
+    // dataset on every event. Each handler is idempotent — if the row was
+    // already added/updated/removed by an optimistic local update, the
+    // operation becomes a no-op.
+    const applyDiff = <T extends { id: string }>(
+      setter: Dispatch<SetStateAction<T[]>>,
+      eventType: "INSERT" | "UPDATE" | "DELETE",
+      newRow: T | null,
+      oldId: string | null,
+    ) => {
+      if (eventType === "DELETE") {
+        if (!oldId) return;
+        setter((prev) => prev.filter((x) => x.id !== oldId));
+        return;
+      }
+      if (!newRow) return;
+      setter((prev) => {
+        const idx = prev.findIndex((x) => x.id === newRow.id);
+        if (eventType === "INSERT") return idx === -1 ? [...prev, newRow] : prev;
+        // UPDATE
+        if (idx === -1) return [...prev, newRow];
+        const next = prev.slice(); next[idx] = newRow; return next;
+      });
+    };
+
     const ch = supabase.channel(`foyer-${userId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "tasks",     filter: `user_id=eq.${userId}` }, () => loadData(userId))
-      .on("postgres_changes", { event: "*", schema: "public", table: "members",   filter: `user_id=eq.${userId}` }, () => loadData(userId))
-      .on("postgres_changes", { event: "*", schema: "public", table: "meals",     filter: `user_id=eq.${userId}` }, () => loadData(userId))
-      .on("postgres_changes", { event: "*", schema: "public", table: "groceries", filter: `user_id=eq.${userId}` }, () => loadData(userId))
-      .on("postgres_changes", { event: "*", schema: "public", table: "reminders", filter: `user_id=eq.${userId}` }, () => loadData(userId))
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks", filter: `user_id=eq.${userId}` }, (p) => {
+        const row = p.new && Object.keys(p.new).length ? toTask(p.new) : null;
+        const oldId = (p.old as { id?: string } | null)?.id ?? null;
+        applyDiff(setTasks, p.eventType as "INSERT" | "UPDATE" | "DELETE", row, oldId);
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "members", filter: `user_id=eq.${userId}` }, (p) => {
+        const row = p.new && Object.keys(p.new).length ? toMember(p.new) : null;
+        const oldId = (p.old as { id?: string } | null)?.id ?? null;
+        applyDiff(setMembers, p.eventType as "INSERT" | "UPDATE" | "DELETE", row, oldId);
+        // If the table goes empty for this user, treat as needing setup.
+        if (p.eventType === "DELETE") {
+          setNeedsSetup((cur) => cur || membersRef.current.length <= 1);
+        }
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "groceries", filter: `user_id=eq.${userId}` }, (p) => {
+        const row = p.new && Object.keys(p.new).length ? toGrocery(p.new) : null;
+        const oldId = (p.old as { id?: string } | null)?.id ?? null;
+        applyDiff(setGroceries, p.eventType as "INSERT" | "UPDATE" | "DELETE", row, oldId);
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "reminders", filter: `user_id=eq.${userId}` }, (p) => {
+        const row = p.new && Object.keys(p.new).length ? toReminder(p.new) : null;
+        const oldId = (p.old as { id?: string } | null)?.id ?? null;
+        applyDiff(setReminders, p.eventType as "INSERT" | "UPDATE" | "DELETE", row, oldId);
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "rooms", filter: `user_id=eq.${userId}` }, (p) => {
+        const row = p.new && Object.keys(p.new).length ? toRoom(p.new) : null;
+        const oldId = (p.old as { id?: string } | null)?.id ?? null;
+        applyDiff(setRooms, p.eventType as "INSERT" | "UPDATE" | "DELETE", row, oldId);
+      })
+      // Meals are stored one row per (user_id, day). UPSERT semantics with
+      // a composite primary key — patch the day's meal in the local Meals object.
+      .on("postgres_changes", { event: "*", schema: "public", table: "meals", filter: `user_id=eq.${userId}` }, (p) => {
+        if (p.eventType === "DELETE") {
+          const day = (p.old as { day?: number } | null)?.day;
+          if (day !== undefined) setMeals((m) => ({ ...m, [day as DayIndex]: "" }));
+          return;
+        }
+        const row = p.new as { day?: number; meal?: string } | null;
+        if (!row || row.day === undefined) return;
+        setMeals((m) => ({ ...m, [row.day as DayIndex]: row.meal ?? "" }));
+      })
       .subscribe();
+
     return () => { supabase.removeChannel(ch); };
-  }, [session, loadData]);
+  }, [session]);
 
   /* ── CRUD (all stable refs) ── */
   const addTask = useCallback(async (t: Task) => {
