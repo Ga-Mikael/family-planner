@@ -238,11 +238,25 @@ async function run() {
   return new Response(JSON.stringify({ ok: true, sent, failed, planned: filtered.length, removed: goneEndpoints.length }), { status: 200 });
 }
 
+function serializeError(err: unknown): Record<string, unknown> {
+  if (err instanceof Error) {
+    return { name: err.name, message: err.message, stack: err.stack?.split("\n").slice(0, 5).join("\n") };
+  }
+  if (typeof err === "object" && err !== null) {
+    try { return JSON.parse(JSON.stringify(err, Object.getOwnPropertyNames(err))); }
+    catch { return { raw: String(err) }; }
+  }
+  return { raw: String(err) };
+}
+
 Deno.serve(async () => {
   try {
     return await run();
   } catch (err) {
     console.error("run failed", err);
-    return new Response(JSON.stringify({ ok: false, error: String(err) }), { status: 500 });
+    return new Response(JSON.stringify({ ok: false, error: serializeError(err) }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 });
