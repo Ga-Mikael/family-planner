@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ViewProps, Member, DayIndex } from "../types";
 import { Icon } from "../components/ui/Icon";
 import { isWeekend } from "../lib/utils";
@@ -8,10 +8,16 @@ import { DAYS_F, DAYS_S2 } from "../lib/constants";
 export function ScheduleView({ members, tasks, updateMember }: ViewProps) {
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const dayLoad = DAYS_F.map((_, i) => tasks.filter((t) => t.day === i && !t.done).length);
-  const maxLoad = Math.max(...dayLoad, 1);
-  const totalActive = members.filter((m) => m.workDays.length > 0).length;
-  const totalLoad = dayLoad.reduce((a, b) => a + b, 0);
+  // Recompute only when relevant inputs change (tasks/members), not on
+  // unrelated state like the `expanded` member panel.
+  const { dayLoad, maxLoad, totalLoad } = useMemo(() => {
+    const dl = DAYS_F.map((_, i) => tasks.filter((t) => t.day === i && !t.done).length);
+    return { dayLoad: dl, maxLoad: Math.max(...dl, 1), totalLoad: dl.reduce((a, b) => a + b, 0) };
+  }, [tasks]);
+  const totalActive = useMemo(
+    () => members.filter((m) => m.workDays.length > 0).length,
+    [members],
+  );
 
   const toggleWorkDay = (m: Member, d: DayIndex) => {
     const isWork = m.workDays.includes(d);

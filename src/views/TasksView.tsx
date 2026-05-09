@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ViewProps, Task, DayIndex, Priority, Recurrence } from "../types";
 import { Icon } from "../components/ui/Icon";
 import { Chip } from "../components/ui/Chip";
@@ -39,18 +39,26 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
     setFname(""); setFms([]); setFr("r-general"); setFp("med"); setFrec("once"); setFtime(""); setFnote(""); setShow(false);
   };
 
-  const filtered = [...tasks]
-    .filter((t) => {
-      if (search && !t.name.toLowerCase().includes(search.toLowerCase())) return false;
-      if (filt === "todo")    return !t.done;
-      if (filt === "done")    return t.done;
-      if (filt === "high")    return t.priority === "high" && !t.done;
-      if (filt === "weekend") return isWeekend(t.day) && !t.done;
-      return true;
-    })
-    .sort((a, b) => ({ high: 0, med: 1, low: 2 }[a.priority] - { high: 0, med: 1, low: 2 }[b.priority] || a.day - b.day));
+  // Recompute only when tasks/search/filt change. Skip on unrelated state.
+  const filtered = useMemo(() => {
+    const prio = { high: 0, med: 1, low: 2 } as const;
+    const s = search.toLowerCase();
+    return [...tasks]
+      .filter((t) => {
+        if (s && !t.name.toLowerCase().includes(s)) return false;
+        if (filt === "todo")    return !t.done;
+        if (filt === "done")    return t.done;
+        if (filt === "high")    return t.priority === "high" && !t.done;
+        if (filt === "weekend") return isWeekend(t.day) && !t.done;
+        return true;
+      })
+      .sort((a, b) => prio[a.priority] - prio[b.priority] || a.day - b.day);
+  }, [tasks, search, filt]);
 
-  const urgentCount = tasks.filter((t) => t.priority === "high" && !t.done).length;
+  const urgentCount = useMemo(
+    () => tasks.filter((t) => t.priority === "high" && !t.done).length,
+    [tasks],
+  );
 
   // ── Rappels ───────────────────────────────────────────────────────────────
   const [rt,         setRt]         = useState("");
