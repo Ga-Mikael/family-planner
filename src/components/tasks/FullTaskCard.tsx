@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { Task, Member, Room } from "../../types";
 import { Icon } from "../ui/Icon";
 import { parseMemberIds, exportToCalendar } from "../../lib/utils";
@@ -12,7 +13,7 @@ interface FullTaskCardProps {
   onEdit: (t: Task) => void;
 }
 
-export function FullTaskCard({ task, members, rooms, onToggle, onDelete, onEdit }: FullTaskCardProps) {
+function FullTaskCardImpl({ task, members, rooms, onToggle, onDelete, onEdit }: FullTaskCardProps) {
   const memberIds = parseMemberIds(task.memberId);
   const taskMembers = memberIds.map((id) => members.find((x) => x.id === id)).filter(Boolean) as Member[];
   const primaryMember = taskMembers[0];
@@ -119,3 +120,9 @@ export function FullTaskCard({ task, members, rooms, onToggle, onDelete, onEdit 
     </div>
   );
 }
+
+/**
+ * Memoized card — skips re-render unless any prop reference changes. Relies on
+ * stable handler refs from useAppData (now wrapped in useCallback).
+ */
+export const FullTaskCard = memo(FullTaskCardImpl);

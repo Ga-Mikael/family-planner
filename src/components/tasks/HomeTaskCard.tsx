@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import type { Task, Member, Room } from "../../types";
 import { Icon } from "../ui/Icon";
 import { isTaskDoneOn, parseMemberIds } from "../../lib/utils";
@@ -15,7 +15,7 @@ interface HomeTaskCardProps {
   dateStr?: string;
 }
 
-export function HomeTaskCard({ task, members, rooms, onToggle, onDelete, onEdit, dateStr }: HomeTaskCardProps) {
+function HomeTaskCardImpl({ task, members, rooms, onToggle, onDelete, onEdit, dateStr }: HomeTaskCardProps) {
   const memberIds   = parseMemberIds(task.memberId);
   const taskMembers = memberIds.map((id) => members.find((x) => x.id === id)).filter(Boolean) as Member[];
   const primaryMember = taskMembers[0];
@@ -159,3 +159,18 @@ export function HomeTaskCard({ task, members, rooms, onToggle, onDelete, onEdit,
     </div>
   );
 }
+
+/**
+ * Memoized card. Skips re-render unless task identity, the date label, or any
+ * props change. Members/rooms/handlers are expected to be stable refs from
+ * useAppData; if they ever become unstable, memo will be a no-op.
+ */
+export const HomeTaskCard = memo(HomeTaskCardImpl, (prev, next) => (
+  prev.task     === next.task &&
+  prev.dateStr  === next.dateStr &&
+  prev.members  === next.members &&
+  prev.rooms    === next.rooms &&
+  prev.onToggle === next.onToggle &&
+  prev.onDelete === next.onDelete &&
+  prev.onEdit   === next.onEdit
+));
