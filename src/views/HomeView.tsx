@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState, useCallback } from "react";
 import type { ViewProps, Task, DayIndex, Priority } from "../types";
 import { Icon } from "../components/ui/Icon";
 import { MemberToggleBar } from "../components/ui/MemberToggleBar";
@@ -11,12 +11,23 @@ import { inputStyle, primaryBtn, ghostBtn, navBtn } from "../styles";
 
 export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, setWeekOff, toggleTask, deleteTask, addTask, updateTask, weekendWarn }: ViewProps) {
   const today = todayIdx();
-  const start = new Date();
-  start.setDate(start.getDate() - today + weekOff * 7);
-  const dates = DAYS_S.map((_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d.getDate(); });
-  const month = MONTHS[new Date(start).getMonth()];
-  const baseMonday = (() => { const d = new Date(); d.setDate(d.getDate() - todayIdx() + weekOff * 7); d.setHours(0, 0, 0, 0); return d; })();
-  const getWeekDate = (i: number) => { const d = new Date(baseMonday); d.setDate(baseMonday.getDate() + i); return d; };
+
+  // Recompute only when weekOff changes (avoids re-allocating Date objects every render).
+  const { dates, month, baseMonday } = useMemo(() => {
+    const start = new Date();
+    start.setDate(start.getDate() - today + weekOff * 7);
+    const dates = DAYS_S.map((_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d.getDate(); });
+    const month = MONTHS[start.getMonth()];
+    const bm = new Date();
+    bm.setDate(bm.getDate() - today + weekOff * 7);
+    bm.setHours(0, 0, 0, 0);
+    return { dates, month, baseMonday: bm };
+  }, [today, weekOff]);
+
+  const getWeekDate = useCallback(
+    (i: number) => { const d = new Date(baseMonday); d.setDate(baseMonday.getDate() + i); return d; },
+    [baseMonday],
+  );
 
   const [addFor,      setAddFor]      = useState<DayIndex | null>(null);
   const [inName,      setInName]      = useState("");

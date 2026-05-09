@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, Suspense, lazy } from "react";
 import type { Session } from "@supabase/supabase-js";
 import type { TabId } from "./types";
 import { supabase } from "./lib/supabase";
@@ -11,12 +11,14 @@ import { LoadingScreen }    from "./components/LoadingScreen";
 import { LoginScreen }      from "./components/LoginScreen";
 import { FamilySetupScreen } from "./components/FamilySetupScreen";
 import { BottomNav }        from "./components/BottomNav";
-import { HomeView }     from "./views/HomeView";
-import { TasksView }    from "./views/TasksView";
-import { AgendaView }   from "./views/AgendaView";
-import { ScheduleView } from "./views/ScheduleView";
-import { FamilyView }   from "./views/FamilyView";
 import type { DayIndex } from "./types";
+
+// Lazy load views — each tab is its own chunk, downloaded on first visit only.
+const HomeView     = lazy(() => import("./views/HomeView").then((m) => ({ default: m.HomeView })));
+const TasksView    = lazy(() => import("./views/TasksView").then((m) => ({ default: m.TasksView })));
+const AgendaView   = lazy(() => import("./views/AgendaView").then((m) => ({ default: m.AgendaView })));
+const ScheduleView = lazy(() => import("./views/ScheduleView").then((m) => ({ default: m.ScheduleView })));
+const FamilyView   = lazy(() => import("./views/FamilyView").then((m) => ({ default: m.FamilyView })));
 
 export default function App() {
   const [session,   setSession]   = useState<Session | null>(null);
@@ -25,7 +27,7 @@ export default function App() {
   const [selDay,    setSelDay]    = useState<DayIndex>(todayIdx());
   const [weekOff,   setWeekOff]   = useState(0);
 
-  // Inject CSS
+  // Inject CSS once (StrictMode-safe via empty dep array + cleanup).
   useEffect(() => {
     const el = document.createElement("style");
     el.textContent = GLOBAL_CSS;
@@ -44,14 +46,15 @@ export default function App() {
   useNotifications(data.tasks, data.reminders);
   const { isDark, toggleTheme } = useTheme();
 
-  if (!authReady)       return <LoadingScreen message="Initialisation…" />;
-  if (!session)         return <LoginScreen />;
-  if (!data.dataReady)  return <LoadingScreen message="Chargement du foyer…" />;
-  if (data.needsSetup)  return <FamilySetupScreen onFinish={data.finishSetup} />;
+  // Memoize derived state to avoid recomputing on every render.
+  const weekendWarn = useMemo(
+    () => data.tasks.filter((t) => isWeekend(t.day) && !t.done).length >= 8,
+    [data.tasks],
+  );
 
-  const weekendWarn = data.tasks.filter((t) => isWeekend(t.day) && !t.done).length >= 8;
-
-  const vp = {
+  // Memoize the props bundle so child views with React.memo (future) don't
+  // re-render when only an unrelated piece of App state changes.
+  const vp = useMemo(() => ({
     members: data.members, tasks: data.tasks, rooms: data.rooms,
     groceries: data.groceries, meals: data.meals, reminders: data.reminders,
     selDay, setSelDay, weekOff, setWeekOff,
@@ -63,7 +66,24 @@ export default function App() {
     addRoom: data.addRoom, deleteRoom: data.deleteRoom,
     weekendWarn, burst: data.burst,
     isDark, toggleTheme,
-  };
+  }), [
+    data.members, data.tasks, data.rooms, data.groceries, data.meals, data.reminders,
+    selDay, weekOff,
+    data.addTask, data.deleteTask, data.toggleTask, data.updateTask,
+    data.addGrocery, data.toggleGroc, data.deleteGroc, data.updateMeals,
+    data.addReminder, data.deleteRem,
+    data.updateMember, data.addMember, data.deleteMember,
+    data.addRoom, data.deleteRoom,
+    weekendWarn, data.burst, isDark, toggleTheme,
+  ]);
+
+  const signOut = useCallback(() => supabase.auth.signOut(), []);
+  const dismissDbError = useCallback(() => data.setDbError(null), [data]);
+
+  if (!authReady)       return <LoadingScreen message="Initialisation…" />;
+  if (!session)         return <LoginScreen />;
+  if (!data.dataReady)  return <LoadingScreen message="Chargement du foyer…" />;
+  if (data.needsSetup)  return <FamilySetupScreen onFinish={data.finishSetup} />;
 
   return (
     <div className="fp-app-root" style={{ maxWidth: 430, margin: "0 auto", minHeight: "100vh", background: "var(--bg)", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
@@ -80,16 +100,18 @@ export default function App() {
             <div style={{ fontWeight: 700, fontSize: ".78rem", color: "var(--danger)", marginBottom: 2 }}>Problème Supabase — les données ne sont pas sauvegardées</div>
             <div style={{ fontSize: ".72rem", color: "var(--muted)", fontFamily: "monospace", wordBreak: "break-all" }}>{data.dbError}</div>
           </div>
-          <button onClick={() => data.setDbError(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger)", fontSize: 16, padding: 0, lineHeight: 1, flexShrink: 0 }}>✕</button>
+          <button onClick={dismissDbError} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger)", fontSize: 16, padding: 0, lineHeight: 1, flexShrink: 0 }}>✕</button>
         </div>
       )}
 
       <div style={{ flex: 1, overflowY: "auto", paddingBottom: 72 }}>
-        {tab === "home"     && <HomeView     {...vp} />}
-        {tab === "tasks"    && <TasksView    {...vp} />}
-        {tab === "agenda"   && <AgendaView   {...vp} />}
-        {tab === "schedule" && <ScheduleView {...vp} />}
-        {tab === "family"   && <FamilyView   {...vp} onSignOut={() => supabase.auth.signOut()} userEmail={session.user.email ?? ""} />}
+        <Suspense fallback={<LoadingScreen message="Chargement…" />}>
+          {tab === "home"     && <HomeView     {...vp} />}
+          {tab === "tasks"    && <TasksView    {...vp} />}
+          {tab === "agenda"   && <AgendaView   {...vp} />}
+          {tab === "schedule" && <ScheduleView {...vp} />}
+          {tab === "family"   && <FamilyView   {...vp} onSignOut={signOut} userEmail={session.user.email ?? ""} />}
+        </Suspense>
       </div>
 
       <BottomNav tab={tab} setTab={setTab} weekendWarn={weekendWarn} />

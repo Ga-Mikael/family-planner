@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { ViewProps, Task, DayIndex, Priority, Recurrence } from "../types";
 import { Icon } from "../components/ui/Icon";
 import { MemberToggleBar } from "../components/ui/MemberToggleBar";
@@ -8,7 +8,8 @@ import { DAYS_F, MONTHS, PRIORITY_CONFIG, RECURRENCE_CONFIG } from "../lib/const
 import { inputStyle, primaryBtn, navBtn } from "../styles";
 
 export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleTask }: ViewProps) {
-  const today = new Date();
+  // Stable per-render `today` (keeps mount-time, avoids time-drift mid-session affecting layout).
+  const today = useMemo(() => new Date(), []);
   const [viewDate,    setViewDate]    = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [detailDay,   setDetailDay]   = useState<number | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
