@@ -2,24 +2,28 @@
 
 End-to-end setup for reliable push notifications (works when app is closed).
 
-## VAPID Keys (already generated)
+## VAPID Keys
 
-- **Public** (already in `.env.example`):
-  ```
-  BBpUbWSGGKyeyqXar3hd2EDEHSMN037pdVWr_lPlBQFWDslPzk5v_4gMLPHqjeEV37AUtGG3KnStcOLn13aa_7s
-  ```
+**Generate fresh keys** (do NOT commit any of them):
 
-- **Private** (paste into Supabase secret — see below):
-  ```
-  ToGs6PMFJBsY4LMTHdXSXutcogBdKX5VArKCVtXdfXQ
-  ```
+```bash
+npx web-push generate-vapid-keys --json
+```
 
-⚠️ Don't commit the private key. Don't share publicly. If leaked, regenerate
-both via `npx web-push generate-vapid-keys --json` and re-deploy.
+You get `{ publicKey, privateKey }`. Use them as below.
+
+| Where                         | Which key      | Sensitivity                    |
+|-------------------------------|----------------|---------------------------------|
+| `.env.example` / hosting env  | publicKey only | Safe to expose                 |
+| Password manager / 1Password  | privateKey     | **Secret** — never in git      |
+| Supabase secret               | privateKey     | Backend only                    |
+| Hosting env (Netlify/Vercel)  | publicKey      | Build-time inject              |
+
+If a private key was ever pushed to a repo (even briefly), **rotate immediately**: generate new pair, update Supabase secret + hosting env + `.env.example`, re-deploy. All existing subscriptions become invalid — every device must re-subscribe.
 
 ## 1. Apply SQL migration
 
-In Supabase Dashboard → SQL Editor → paste content of
+Supabase Dashboard → SQL Editor → paste content of
 `supabase/migrations/20260508_push_subscriptions.sql` → Run.
 
 Creates: `push_subscriptions`, `push_log` tables with RLS.
@@ -29,8 +33,10 @@ Creates: `push_subscriptions`, `push_log` tables with RLS.
 Add to your hosting env (Vercel/Netlify) and to `.env.local`:
 
 ```
-VITE_VAPID_PUBLIC_KEY=BBpUbWSGGKyeyqXar3hd2EDEHSMN037pdVWr_lPlBQFWDslPzk5v_4gMLPHqjeEV37AUtGG3KnStcOLn13aa_7s
+VITE_VAPID_PUBLIC_KEY=<your publicKey>
 ```
+
+The committed `.env.example` always reflects the current public key.
 
 ## 3. Deploy Edge Function
 
@@ -46,16 +52,16 @@ Link the project (one-time):
 supabase link --project-ref jnpiblsxmqulrlqhdzji
 ```
 
-Set secrets (private key + service role):
+Set secrets — replace the placeholders with your actual keys (paste from password manager):
 
 ```bash
 supabase secrets set \
-  VAPID_PRIVATE_KEY="ToGs6PMFJBsY4LMTHdXSXutcogBdKX5VArKCVtXdfXQ" \
-  VAPID_PUBLIC_KEY="BBpUbWSGGKyeyqXar3hd2EDEHSMN037pdVWr_lPlBQFWDslPzk5v_4gMLPHqjeEV37AUtGG3KnStcOLn13aa_7s" \
-  VAPID_SUBJECT="mailto:mikael.galle.pro@gmail.com"
+  VAPID_PRIVATE_KEY="<your privateKey>" \
+  VAPID_PUBLIC_KEY="<your publicKey>" \
+  VAPID_SUBJECT="mailto:you@example.com"
 ```
 
-(`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are auto-injected.)
+(`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` auto-injected.)
 
 Deploy the function:
 
@@ -65,53 +71,48 @@ supabase functions deploy notify-cron
 
 ## 4. Schedule the cron
 
-In Supabase Dashboard → Database → Extensions → enable `pg_cron` if not already.
+Supabase Dashboard → Database → Extensions → enable `pg_cron` and `pg_net` (usually pre-enabled).
 
-Then SQL Editor:
+Then SQL Editor — replace `YOUR_ANON_KEY_HERE` with the project's anon key:
 
 ```sql
--- Run notify-cron every 5 minutes
 select cron.schedule(
   'notify-cron-every-5min',
   '*/5 * * * *',
   $$
   select net.http_post(
-    url:='https://jnpiblsxmqulrlqhdzji.supabase.co/functions/v1/notify-cron',
-    headers:=jsonb_build_object(
-      'Content-Type','application/json',
-      'Authorization','Bearer YOUR_ANON_KEY_HERE'
+    url := 'https://jnpiblsxmqulrlqhdzji.supabase.co/functions/v1/notify-cron',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer YOUR_ANON_KEY_HERE'
     )
   ) as request_id;
   $$
 );
 ```
 
-(`pg_net` extension required — usually pre-enabled on Supabase.)
-
 To inspect / unschedule:
 ```sql
 select * from cron.job;
+select jobid, status, return_message, start_time
+  from cron.job_run_details order by start_time desc limit 5;
 select cron.unschedule('notify-cron-every-5min');
 ```
 
-## 5. User flow per device
+## 5. Per-device flow
 
 1. Open app in Safari (iOS 16.4+)
 2. Share → Sur l'écran d'accueil → install PWA
 3. Open from Home Screen icon
-4. Tâches → "Activer notifs persistantes" violet banner → Activer
+4. Tâches → violet banner "Activer notifs persistantes" → Activer
 5. Permission prompt → Allow
 6. Banner becomes green "Push actif" → done
 
-Now scheduled tasks/reminders fire from the server, even when the app is fully
-closed (within ±5 min of dueTime).
+Server-side push now fires for tasks/reminders within ±5 min of dueTime even when the app is fully closed.
 
 ## Debugging
 
-- **No notif arriving**: check Edge Function logs in Supabase Dashboard →
-  Edge Functions → notify-cron → Logs.
-- **`{ ok: true, sent: 0 }`**: means no tasks/reminders matched the 5-minute
-  window. Try setting a task with dueTime within next 5 minutes.
-- **404/410 errors in logs**: subscription expired — auto-cleaned by the function.
-- **VAPID `400 BadJwtToken`**: VAPID public key in env doesn't match what's
-  registered in PushManager. Regenerate both, redeploy, re-subscribe each device.
+- **No notif arriving**: Edge Function logs in Supabase Dashboard → Edge Functions → notify-cron → Logs
+- **`{ ok: true, sent: 0 }`**: no task/reminder matched the 5-minute window — set a task with dueTime in the next 5 min
+- **404/410 in logs**: subscription expired, auto-cleaned by the function
+- **VAPID `400 BadJwtToken`**: public key mismatch — frontend env public key ≠ Supabase secret public key. Regenerate both, redeploy, every device must re-subscribe.
