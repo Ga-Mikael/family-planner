@@ -8,8 +8,9 @@ import { WorkConflictAlert } from "../components/ui/WorkConflictAlert";
 import { FullTaskCard } from "../components/tasks/FullTaskCard";
 import { EditTaskModal } from "../components/tasks/EditTaskModal";
 import { todayIdx, getWorkConflict } from "../lib/utils";
-import { DAYS_F, DAYS_S2, MEMBER_COLORS, PRIORITY_CONFIG, RECURRENCE_CONFIG } from "../lib/constants";
+import { DAYS_F, MEMBER_COLORS, PRIORITY_CONFIG, RECURRENCE_CONFIG } from "../lib/constants";
 import { inputStyle, primaryBtn, ghostBtn } from "../styles";
+import { categorize, categoryMeta, GROCERY_CATEGORIES } from "../lib/grocery-category";
 
 interface FamilyViewProps extends ViewProps {
   onSignOut: () => void;
@@ -17,8 +18,8 @@ interface FamilyViewProps extends ViewProps {
 }
 
 export function FamilyView({
-  members, tasks, rooms, groceries, meals,
-  addGrocery, toggleGroc, deleteGroc, updateMeals,
+  members, tasks, rooms, groceries,
+  addGrocery, toggleGroc, deleteGroc,
   addTask, toggleTask, deleteTask, updateTask,
   addMember, deleteMember, addRoom, deleteRoom,
   onSignOut, userEmail,
@@ -58,10 +59,6 @@ export function FamilyView({
   // Courses
   const [gn,    setGn]    = useState("");
   const [gqVal, setGqVal] = useState("");
-
-  // Repas
-  const [ed,    setEd]    = useState<DayIndex | null>(null);
-  const [miVal, setMiVal] = useState("");
 
 
   const room = selRoom ? rooms.find((r) => r.id === selRoom) : null;
@@ -409,60 +406,105 @@ export function FamilyView({
           </div>
         )}
 
-        {/* ── CUISINE ── */}
-        {section === "cuisine" && (
-          <>
-            <SectionTitle iconName="chef" title="Planning repas" />
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
-              {DAYS_F.map((d, i) => {
-                const di = i as DayIndex;
+        {/* ── CUISINE ── Liste de courses groupée par rayon ── */}
+        {section === "cuisine" && (() => {
+          const remaining = groceries.filter((g) => !g.done).length;
+
+          // Group by category, preserving each category's display order.
+          const groups = new Map<string, typeof groceries>();
+          for (const g of groceries) {
+            const cat = categorize(g.name);
+            const arr = groups.get(cat) ?? [];
+            arr.push(g);
+            groups.set(cat, arr);
+          }
+          const orderedGroups = GROCERY_CATEGORIES
+            .map((c) => ({ meta: c, items: groups.get(c.id) ?? [] }))
+            .filter((g) => g.items.length > 0);
+
+          return (
+            <>
+              <SectionTitle iconName="cart" title={`Courses${remaining > 0 ? " · " + remaining + " restant" + (remaining > 1 ? "s" : "") : ""}`} />
+
+              {/* Ajout */}
+              <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+                <input
+                  value={gn}
+                  onChange={(e) => setGn(e.target.value)}
+                  placeholder="Article…"
+                  style={{ ...inputStyle, flex: 1, background: "var(--surface)" }}
+                  onKeyDown={(e) => { if (e.key === "Enter" && gn.trim()) { addGrocery({ name: gn.trim(), qty: gqVal, done: false }); setGn(""); setGqVal(""); } }}
+                />
+                <input
+                  value={gqVal}
+                  onChange={(e) => setGqVal(e.target.value)}
+                  placeholder="Qté"
+                  style={{ ...inputStyle, width: 70, background: "var(--surface)" }}
+                />
+                <button
+                  aria-label="Ajouter article"
+                  onClick={() => { if (gn.trim()) { addGrocery({ name: gn.trim(), qty: gqVal, done: false }); setGn(""); setGqVal(""); } }}
+                  style={{ ...primaryBtn, padding: "10px 14px" }}
+                >
+                  <Icon name="plus" size={18} sw={2.4} />
+                </button>
+              </div>
+
+              {/* Aperçu live de la catégorie auto-détectée pour l'article en cours de saisie */}
+              {gn.trim() && (() => {
+                const m = categoryMeta(categorize(gn));
                 return (
-                  <div key={i} style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: di === todayIdx() ? "var(--warn-bg)" : "var(--surface)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontWeight: 800, fontSize: ".8rem" }}>{DAYS_S2[i]}</div>
-                    {ed === di ? (
-                      <div style={{ display: "flex", flex: 1, gap: 8 }}>
-                        <input value={miVal} onChange={(e) => setMiVal(e.target.value)} placeholder="Nom du repas…" style={{ ...inputStyle, flex: 1, padding: "6px 10px", fontSize: ".8rem", background: "var(--surface)" }} onKeyDown={(e) => { if (e.key === "Enter") { updateMeals({ ...meals, [di]: miVal }); setEd(null); } }} autoFocus />
-                        <button onClick={() => { updateMeals({ ...meals, [di]: miVal }); setEd(null); }} style={{ ...primaryBtn, padding: "6px 14px", fontSize: ".75rem" }}>OK</button>
-                      </div>
-                    ) : (
-                      <div style={{ flex: 1, cursor: "pointer" }} onClick={() => { setEd(di); setMiVal(meals[di] || ""); }}>
-                        {meals[di] ? <span style={{ fontWeight: 600, fontSize: ".875rem" }}>{meals[di]}</span> : <span style={{ color: "var(--muted2)", fontSize: ".8rem", fontStyle: "italic" }}>Cliquer pour ajouter…</span>}
-                      </div>
-                    )}
-                    {meals[di] && ed !== di && (
-                      <button onClick={() => updateMeals({ ...meals, [di]: "" })} style={{ background: "none", border: "none", color: "var(--muted2)", cursor: "pointer", padding: 5, display: "flex" }}>
-                        <Icon name="x" size={14} />
-                      </button>
-                    )}
+                  <div style={{ marginBottom: 12, fontSize: ".68rem", color: "var(--muted)", display: "flex", alignItems: "center", gap: 6 }}>
+                    <span aria-hidden="true">{m.icon}</span>
+                    <span>Ira dans <span style={{ fontWeight: 700, color: "var(--text)" }}>{m.label}</span></span>
                   </div>
                 );
-              })}
-            </div>
+              })()}
 
-            <SectionTitle iconName="cart" title={`Courses${groceries.filter((g) => !g.done).length > 0 ? " · " + groceries.filter((g) => !g.done).length + " restant" + (groceries.filter((g) => !g.done).length > 1 ? "s" : "") : ""}`} />
-            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-              <input value={gn} onChange={(e) => setGn(e.target.value)} placeholder="Article…" style={{ ...inputStyle, flex: 1, background: "var(--surface)" }} onKeyDown={(e) => { if (e.key === "Enter" && gn.trim()) { addGrocery({ name: gn.trim(), qty: gqVal, done: false }); setGn(""); setGqVal(""); } }} />
-              <input value={gqVal} onChange={(e) => setGqVal(e.target.value)} placeholder="Qté" style={{ ...inputStyle, width: 70, background: "var(--surface)" }} />
-              <button onClick={() => { if (gn.trim()) { addGrocery({ name: gn.trim(), qty: gqVal, done: false }); setGn(""); setGqVal(""); } }} style={{ ...primaryBtn, padding: "10px 14px" }}>
-                <Icon name="plus" size={18} sw={2.4} />
-              </button>
-            </div>
-            {groceries.length === 0 ? <Empty iconName="cart" text="Liste de courses vide" /> : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {groceries.map((g) => (
-                  <div key={g.id} onClick={() => toggleGroc(g.id)} style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", opacity: g.done ? 0.5 : 1, transition: "opacity .2s" }}>
-                    <div style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${g.done ? "var(--green)" : "var(--border)"}`, background: g.done ? "var(--green)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: ".75rem", flexShrink: 0, transition: "all .2s" }}>{g.done ? "✓" : ""}</div>
-                    <span style={{ flex: 1, fontWeight: 600, fontSize: ".875rem", textDecoration: g.done ? "line-through" : "none" }}>{g.name}</span>
-                    {g.qty && <span style={{ fontSize: ".75rem", color: "var(--muted2)", fontWeight: 600 }}>{g.qty}</span>}
-                    <button onClick={(e) => { e.stopPropagation(); deleteGroc(g.id); }} style={{ background: "none", border: "none", color: "var(--muted2)", cursor: "pointer", padding: 5, display: "flex" }}>
-                      <Icon name="x" size={14} />
-                    </button>
+              {groceries.length === 0
+                ? <Empty iconName="cart" text="Liste de courses vide" />
+                : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                    {orderedGroups.map(({ meta, items }) => {
+                      const doneInCat = items.filter((g) => g.done).length;
+                      return (
+                        <div key={meta.id}>
+                          {/* En-tête de rayon */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, paddingLeft: 2 }}>
+                            <span aria-hidden="true" style={{ fontSize: "1rem" }}>{meta.icon}</span>
+                            <h3 style={{ fontWeight: 800, fontSize: ".82rem", color: "var(--text)", letterSpacing: "-.1px", flex: 1 }}>{meta.label}</h3>
+                            <span style={{ fontSize: ".62rem", fontWeight: 800, color: "var(--muted)", fontVariantNumeric: "tabular-nums" }}>
+                              {doneInCat}/{items.length}
+                            </span>
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            {items.map((g) => (
+                              <div
+                                key={g.id}
+                                onClick={() => toggleGroc(g.id)}
+                                style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", opacity: g.done ? 0.5 : 1, transition: "opacity .2s" }}
+                              >
+                                <div style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${g.done ? "var(--green)" : "var(--border)"}`, background: g.done ? "var(--green)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: ".75rem", flexShrink: 0, transition: "all .2s" }}>{g.done ? "✓" : ""}</div>
+                                <span style={{ flex: 1, fontWeight: 600, fontSize: ".875rem", textDecoration: g.done ? "line-through" : "none" }}>{g.name}</span>
+                                {g.qty && <span style={{ fontSize: ".75rem", color: "var(--muted2)", fontWeight: 600 }}>{g.qty}</span>}
+                                <button
+                                  aria-label={`Supprimer ${g.name}`}
+                                  onClick={(e) => { e.stopPropagation(); deleteGroc(g.id); }}
+                                  style={{ background: "none", border: "none", color: "var(--muted2)", cursor: "pointer", padding: 5, display: "flex" }}
+                                >
+                                  <Icon name="x" size={14} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
+                )}
+            </>
+          );
+        })()}
 
       </div>
 
