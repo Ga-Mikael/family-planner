@@ -57,14 +57,16 @@ export function usePushSubscription() {
   /** Subscribes (asks permission if needed) and persists to Supabase. */
   const subscribe = useCallback(async () => {
     const userId = await currentUserId();
-    if (!userId) throw new Error("Not signed in");
-    if (!VAPID_PUBLIC_KEY) throw new Error("VAPID public key missing in env");
+    if (!userId) throw new Error("Non connecté");
+    if (!("serviceWorker" in navigator)) throw new Error("Service Worker non supporté");
+    if (!("PushManager" in window)) throw new Error("Push non supporté par ce navigateur");
+    if (!VAPID_PUBLIC_KEY) throw new Error("Clé VAPID publique absente (VITE_VAPID_PUBLIC_KEY non configurée sur Netlify ?)");
 
     // 1. Permission
     const perm = await Notification.requestPermission();
     if (perm !== "granted") {
       setState(perm === "denied" ? "denied" : "default");
-      return;
+      throw new Error(perm === "denied" ? "Permission refusée (Réglages iPhone → Notre Foyer)" : "Permission non accordée");
     }
 
     // 2. Subscribe via SW
@@ -72,18 +74,25 @@ export function usePushSubscription() {
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
       const key = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        // Cast to satisfy strict ArrayBufferView<ArrayBuffer> typing
-        applicationServerKey: key.buffer.slice(key.byteOffset, key.byteOffset + key.byteLength) as ArrayBuffer,
-      });
+      try {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          // Cast to satisfy strict ArrayBufferView<ArrayBuffer> typing
+          applicationServerKey: key.buffer.slice(key.byteOffset, key.byteOffset + key.byteLength) as ArrayBuffer,
+        });
+      } catch (e) {
+        // Common cause: VAPID key mismatch with an existing subscription, or
+        // the PWA isn't installed (iOS requires standalone for push).
+        const m = e instanceof Error ? e.message : String(e);
+        throw new Error(`pushManager.subscribe a échoué — ${m}. (Sur iPhone : l'app doit être installée via 'Sur l'écran d'accueil')`);
+      }
     }
 
     // 3. Persist to Supabase
     const json = sub.toJSON();
     const p256dh = json.keys?.p256dh;
     const auth   = json.keys?.auth;
-    if (!p256dh || !auth) throw new Error("Subscription keys missing");
+    if (!p256dh || !auth) throw new Error("Clés de souscription manquantes");
 
     const { error } = await supabase.from("push_subscriptions").upsert({
       user_id:      userId,
@@ -94,7 +103,9 @@ export function usePushSubscription() {
       user_agent:   navigator.userAgent.slice(0, 240),
       last_seen_at: new Date().toISOString(),
     }, { onConflict: "endpoint" });
-    if (error) throw error;
+    // Supabase returns a PostgrestError object (not an Error) — re-wrap so
+    // callers get a readable message instead of "[object Object]".
+    if (error) throw new Error(`Enregistrement Supabase échoué — ${error.message}${error.hint ? ` (${error.hint})` : ""}`);
 
     setState("subscribed");
   }, []);

@@ -156,7 +156,12 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
               <button
                 onClick={async () => {
                   try { await push.subscribe(); }
-                  catch (e) { alert("Subscribe failed: " + String(e)); }
+                  catch (e) {
+                    const msg = e instanceof Error ? `${e.name}: ${e.message}`
+                      : (typeof e === "object" && e !== null) ? JSON.stringify(e)
+                      : String(e);
+                    alert("Échec activation push — " + msg);
+                  }
                 }}
                 style={{ padding: "5px 11px", border: "none", borderRadius: 8, background: "var(--violet)", color: "white", fontSize: ".68rem", fontWeight: 800, cursor: "pointer", flexShrink: 0 }}
               >
