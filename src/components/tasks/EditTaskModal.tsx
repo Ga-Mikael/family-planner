@@ -45,8 +45,12 @@ export function EditTaskModal({ task, members, rooms, onSave, onClose }: EditTas
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Modifier la tâche"
       style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", zIndex: 1000, display: "flex", alignItems: "flex-end" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
+      onKeyDown={(e) => e.key === "Escape" && onClose()}
     >
       <div style={{
         width: "100%", background: "var(--bg)", borderRadius: "20px 20px 0 0",
@@ -56,6 +60,7 @@ export function EditTaskModal({ task, members, rooms, onSave, onClose }: EditTas
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
           <h2 style={{ fontWeight: 800, fontSize: "1rem" }}>Modifier la tâche</h2>
           <button
+            aria-label="Fermer"
             onClick={onClose}
             style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid var(--border)", background: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
           >
@@ -65,6 +70,7 @@ export function EditTaskModal({ task, members, rooms, onSave, onClose }: EditTas
 
         <input
           autoFocus
+          aria-label="Nom de la tâche"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && save()}

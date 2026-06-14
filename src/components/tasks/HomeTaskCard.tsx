@@ -71,6 +71,11 @@ function HomeTaskCardImpl({ task, members, rooms, onToggle, onDelete, onEdit, da
 
       {/* Carte principale */}
       <div
+        role="checkbox"
+        aria-checked={isDone}
+        aria-label={`${task.name}${isDone ? " — faite" : ""}`}
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(task.id, dateStr); } }}
         onClick={() => onToggle(task.id, dateStr)}
         style={{
           flex: 1,
@@ -86,8 +91,8 @@ function HomeTaskCardImpl({ task, members, rooms, onToggle, onDelete, onEdit, da
           transition: swipeOffset === 0 ? "transform .2s ease" : "none",
         }}
       >
-        {/* Checkbox — rounded square like mockup */}
-        <div style={{
+        {/* Checkbox — rounded square like mockup (décorative, état porté par la carte) */}
+        <div aria-hidden="true" style={{
           width: 24, height: 24, borderRadius: 8,
           border: isDone ? `2px solid var(--green)` : `2px solid var(--border)`,
           background: isDone ? "var(--green)" : "transparent",
@@ -142,6 +147,7 @@ function HomeTaskCardImpl({ task, members, rooms, onToggle, onDelete, onEdit, da
 
         {/* Bouton modifier */}
         <button
+          aria-label={`Modifier ${task.name}`}
           onClick={(e) => { e.stopPropagation(); onEdit(task); }}
           style={{ position: "absolute", bottom: 5, right: 30, background: "none", border: "none", cursor: "pointer", color, opacity: .35, padding: 2, display: "flex" }}
         >
@@ -150,6 +156,7 @@ function HomeTaskCardImpl({ task, members, rooms, onToggle, onDelete, onEdit, da
 
         {/* Bouton supprimer */}
         <button
+          aria-label={`Supprimer ${task.name}`}
           onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
           style={{ position: "absolute", bottom: 5, right: 8, background: "none", border: "none", cursor: "pointer", color, opacity: .35, padding: 2, display: "flex" }}
         >

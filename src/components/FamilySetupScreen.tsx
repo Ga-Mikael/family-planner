@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { newId } from "../lib/utils";
 import type { Member, IconName } from "../types";
 import { MEMBER_COLORS, PRESET_EMOJIS } from "../lib/constants";
 import { Icon } from "./ui/Icon";
@@ -44,7 +45,7 @@ export function FamilySetupScreen({ onFinish }: FamilySetupScreenProps) {
     setError(null);
     setLoading(true);
     const built: Member[] = valid.map((m, i) => ({
-      id:        "m" + Date.now() + i,
+      id:        newId("m"),
       name:      m.name.trim(),
       emoji:     m.emoji,
       isChild:   m.isChild,

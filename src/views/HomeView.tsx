@@ -1,13 +1,12 @@
 import { useMemo, useRef, useState, useCallback } from "react";
-import type { ViewProps, Task, DayIndex, Priority } from "../types";
+import type { ViewProps, Task, DayIndex } from "../types";
 import { Icon } from "../components/ui/Icon";
-import { MemberToggleBar } from "../components/ui/MemberToggleBar";
-import { WorkConflictAlert } from "../components/ui/WorkConflictAlert";
 import { HomeTaskCard } from "../components/tasks/HomeTaskCard";
 import { EditTaskModal } from "../components/tasks/EditTaskModal";
-import { todayIdx, isWeekend, isTaskDoneOn, getWorkConflict, getFrenchHolidays, getVacation, dateKey, toDateStr } from "../lib/utils";
-import { DAYS_S, DAYS_F, MONTHS, PRIORITY_CONFIG } from "../lib/constants";
-import { inputStyle, primaryBtn, ghostBtn, navBtn } from "../styles";
+import { TaskForm } from "../components/tasks/TaskForm";
+import { todayIdx, isWeekend, isTaskDoneOn, getFrenchHolidays, getVacation, dateKey, toDateStr } from "../lib/utils";
+import { DAYS_S, DAYS_F, MONTHS } from "../lib/constants";
+import { navBtn } from "../styles";
 
 export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, setWeekOff, toggleTask, deleteTask, addTask, updateTask, weekendWarn }: ViewProps) {
   const today = todayIdx();
@@ -30,12 +29,15 @@ export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, se
   );
 
   const [addFor,      setAddFor]      = useState<DayIndex | null>(null);
-  const [inName,      setInName]      = useState("");
-  const [inMembers,   setInMembers]   = useState<string[]>([]);
-  const [inRoom,      setInRoom]      = useState("r-general");
-  const [inPrio,      setInPrio]      = useState<Priority>("med");
-  const [inTime,      setInTime]      = useState("");
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  // Astuce swipe affichée tant que l'utilisateur ne l'a pas fermée (persisté).
+  const [showSwipeHint, setShowSwipeHint] = useState(() => {
+    try { return localStorage.getItem("fp-swipe-hint-seen") !== "1"; } catch { return false; }
+  });
+  const dismissSwipeHint = () => {
+    setShowSwipeHint(false);
+    try { localStorage.setItem("fp-swipe-hint-seen", "1"); } catch { /* private mode */ }
+  };
   const [counterPopup, setCounterPopup] = useState<{ day: DayIndex; items: Task[]; dateStr: string } | null>(null);
 
   // ── Swipe pour changer de semaine ─────────────────────────────────────────
@@ -52,19 +54,6 @@ export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, se
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
       setWeekOff(dx < 0 ? weekOff + 1 : weekOff - 1);
     }
-  };
-
-  const conflict = getWorkConflict(inMembers.join(","), addFor ?? 0, inTime, members);
-
-  const submitInline = (day: DayIndex) => {
-    if (!inName.trim() || conflict) return;
-    addTask({
-      id: "t" + Date.now(), name: inName.trim(), memberId: inMembers.join(","),
-      roomId: inRoom, day, priority: inPrio, recurrence: "once", done: false,
-      dueTime: inTime || undefined,
-      dueDate: toDateStr(getWeekDate(day)),
-    });
-    setInName(""); setInMembers([]); setInRoom("r-general"); setInPrio("med"); setInTime(""); setAddFor(null);
   };
 
   // Filtre les tâches pour un jour donné (prend en compte la date précise pour les tâches "once")
@@ -116,11 +105,11 @@ export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, se
             </h1>
           </div>
           <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={() => setWeekOff(weekOff - 1)} style={navBtn}><Icon name="chevronLeft" size={16} /></button>
+            <button aria-label="Semaine précédente" onClick={() => setWeekOff(weekOff - 1)} style={navBtn}><Icon name="chevronLeft" size={16} /></button>
             {weekOff !== 0 && (
               <button onClick={() => setWeekOff(0)} style={{ ...navBtn, fontSize: ".7rem", fontWeight: 700, padding: "0 10px", width: "auto" }}>Auj.</button>
             )}
-            <button onClick={() => setWeekOff(weekOff + 1)} style={navBtn}><Icon name="chevronRight" size={16} /></button>
+            <button aria-label="Semaine suivante" onClick={() => setWeekOff(weekOff + 1)} style={navBtn}><Icon name="chevronRight" size={16} /></button>
           </div>
         </div>
 
@@ -134,7 +123,7 @@ export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, se
             const wdHol = getFrenchHolidays(wd.getFullYear()).get(dateKey(wd));
             const wdVac = getVacation(wd);
             return (
-              <button key={i} onClick={() => setSelDay(d)} style={{ border: "none", background: "none", cursor: "pointer", textAlign: "center", padding: "4px 1px" }}>
+              <button key={i} aria-label={`${DAYS_F[d]} ${dates[i]}`} aria-pressed={isSel} onClick={() => setSelDay(d)} style={{ border: "none", background: "none", cursor: "pointer", textAlign: "center", padding: "4px 1px" }}>
                 <div style={{ fontSize: ".58rem", fontWeight: 800, color: isWe ? "var(--warn)" : "var(--muted2)", marginBottom: 3, textTransform: "uppercase" }}>{DAYS_S[i]}</div>
                 <div style={{
                   width: 32, height: 32, borderRadius: 10, margin: "0 auto",
@@ -203,6 +192,17 @@ export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, se
 
       {/* Agenda */}
       <div style={{ padding: "0 16px" }}>
+        {showSwipeHint && tasks.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--accent-bg)", border: "1px dashed var(--accent)", borderRadius: 12, padding: "8px 12px", marginBottom: 12 }}>
+            <Icon name="chevronRight" size={13} color="var(--accent)" sw={2.5} />
+            <span style={{ flex: 1, fontSize: ".72rem", fontWeight: 600, color: "var(--text)" }}>
+              Astuce : glissez une tâche vers la droite pour la valider
+            </span>
+            <button aria-label="Fermer l'astuce" onClick={dismissSwipeHint} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--accent)", padding: 2, display: "flex" }}>
+              <Icon name="x" size={13} sw={2.5} />
+            </button>
+          </div>
+        )}
         {agenda.map((dayIdx) => {
           const items   = dayItems(dayIdx);
           const dateStr = toDateStr(getWeekDate(dayIdx));
@@ -243,39 +243,17 @@ export function HomeView({ members, tasks, rooms, selDay, setSelDay, weekOff, se
 
               {isSel && (
                 addFor === dayIdx ? (
-                  <div style={{ background: "var(--soft)", border: "1.5px solid var(--border)", borderRadius: 14, padding: 14, marginTop: 8, animation: "fadeUp .2s ease" }}>
-                    <input
-                      autoFocus
-                      value={inName}
-                      onChange={(e) => setInName(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && !conflict && submitInline(dayIdx)}
+                  <div style={{ marginTop: 8 }}>
+                    <TaskForm
+                      members={members}
+                      rooms={rooms}
+                      fixedDay={dayIdx}
+                      fixedDate={dateStr}
+                      showRecurrence={false}
                       placeholder={`Tâche pour ${DAYS_F[dayIdx]}…`}
-                      style={{ ...inputStyle, marginBottom: 8, background: "var(--surface)" }}
+                      onSubmit={(t) => { addTask(t); setAddFor(null); }}
+                      onCancel={() => setAddFor(null)}
                     />
-                    <MemberToggleBar members={members} selected={inMembers} onChange={setInMembers} />
-                    <div style={{ marginBottom: 8 }}>
-                      <input type="time" value={inTime} onChange={(e) => setInTime(e.target.value)} style={{ ...inputStyle, background: "var(--surface)" }} />
-                    </div>
-                    <WorkConflictAlert conflict={conflict} />
-                    <select value={inRoom} onChange={(e) => setInRoom(e.target.value)} style={{ ...inputStyle, marginBottom: 8, background: "var(--surface)" }}>
-                      {rooms.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-                    </select>
-                    <div style={{ display: "flex", gap: 5, marginBottom: 10 }}>
-                      {(["low", "med", "high"] as Priority[]).map((p) => {
-                        const c = PRIORITY_CONFIG[p];
-                        return <button key={p} onClick={() => setInPrio(p)} style={{ flex: 1, padding: "7px 4px", border: `1.5px solid ${inPrio === p ? c.color : "var(--border)"}`, borderRadius: 8, background: inPrio === p ? c.bg : "var(--surface)", color: inPrio === p ? c.color : "var(--muted)", fontSize: ".7rem", fontWeight: 700, cursor: "pointer" }}>{c.label}</button>;
-                      })}
-                    </div>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button
-                        onClick={() => submitInline(dayIdx)}
-                        disabled={!!conflict}
-                        style={{ ...primaryBtn, flex: 1, padding: "9px 16px", fontSize: ".82rem", opacity: conflict ? 0.6 : 1, cursor: conflict ? "not-allowed" : "pointer" }}
-                      >
-                        {conflict ? "⚠️ Conflit" : "Ajouter ✓"}
-                      </button>
-                      <button onClick={() => setAddFor(null)} style={{ ...ghostBtn, padding: "9px 16px", fontSize: ".82rem" }}>Annuler</button>
-                    </div>
                   </div>
                 ) : (
                   <button

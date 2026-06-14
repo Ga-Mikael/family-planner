@@ -1,11 +1,11 @@
 import { useMemo, useRef, useState } from "react";
-import type { ViewProps, Task, DayIndex, Priority, Recurrence } from "../types";
+import type { ViewProps, Task, DayIndex } from "../types";
 import { Icon } from "../components/ui/Icon";
-import { MemberToggleBar } from "../components/ui/MemberToggleBar";
 import { EditTaskModal } from "../components/tasks/EditTaskModal";
+import { TaskForm } from "../components/tasks/TaskForm";
 import { parseMemberIds, isTaskDoneOn, getFrenchHolidays, getVacation, dateKey, toDateStr } from "../lib/utils";
 import { DAYS_F, MONTHS, PRIORITY_CONFIG, RECURRENCE_CONFIG } from "../lib/constants";
-import { inputStyle, primaryBtn, navBtn } from "../styles";
+import { navBtn } from "../styles";
 
 export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleTask }: ViewProps) {
   // Stable per-render `today` (keeps mount-time, avoids time-drift mid-session affecting layout).
@@ -13,11 +13,6 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
   const [viewDate,    setViewDate]    = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [detailDay,   setDetailDay]   = useState<number | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [aName,       setAName]       = useState("");
-  const [aMembers,    setAMembers]    = useState<string[]>([]);
-  const [aPrio,       setAPrio]       = useState<Priority>("med");
-  const [aRec,        setARec]        = useState<Recurrence>("once");
-  const [aTime,       setATime]       = useState("");
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   // Compteurs : section expandée en bas (null = fermé)
@@ -64,55 +59,49 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
   const firstMon = (() => { const d = new Date(year, month, 1).getDay(); return d === 0 ? 6 : d - 1; })();
   const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
 
-  const tasksByDom = (dom: number) => {
-    const date = new Date(year, month, dom);
-    const dow = (date.getDay() === 0 ? 6 : date.getDay() - 1) as DayIndex;
-    const dateStr = toDateStr(date);
-    return tasks.filter((t) => {
-      if (t.recurrence !== "once") return t.day === dow;
-      if (t.dueDate) return t.dueDate === dateStr;
-      return t.day === dow;
-    });
-  };
+  // Pré-calcule la liste des tâches de chaque jour du mois en un seul passage.
+  // Avant : tasksByDom(dom) refiltrait tout `tasks` pour chacune des ~30 cellules.
+  const tasksPerDom = useMemo(() => {
+    const map = new Map<number, Task[]>();
+    for (let dom = 1; dom <= daysInMonth; dom++) {
+      const date = new Date(year, month, dom);
+      const dow = (date.getDay() === 0 ? 6 : date.getDay() - 1) as DayIndex;
+      const dateStr = toDateStr(date);
+      map.set(dom, tasks.filter((t) => {
+        if (t.recurrence !== "once") return t.day === dow;
+        if (t.dueDate) return t.dueDate === dateStr;
+        return t.day === dow;
+      }));
+    }
+    return map;
+  }, [tasks, year, month, daysInMonth]);
+
+  const tasksByDom = (dom: number) => tasksPerDom.get(dom) ?? [];
 
   const selDow     = detailDay ? ((new Date(year, month, detailDay).getDay() === 0 ? 6 : new Date(year, month, detailDay).getDay() - 1) as DayIndex) : null;
   const selTasks   = detailDay !== null && selDow !== null ? tasksByDom(detailDay) : [];
   const selDateStr = detailDay !== null ? toDateStr(new Date(year, month, detailDay)) : "";
 
-  const addTaskForDay = () => {
-    if (!aName.trim() || selDow === null || detailDay === null) return;
-    addTask({
-      id: "t" + Date.now(), name: aName.trim(), memberId: aMembers.join(","),
-      roomId: "r-general", day: selDow, priority: aPrio, recurrence: aRec,
-      done: false, dueTime: aTime || undefined,
-      dueDate: aRec === "once" ? toDateStr(new Date(year, month, detailDay)) : undefined,
-    });
-    setAName(""); setAMembers([]); setATime(""); setARec("once"); setShowAddForm(false);
-  };
+  // Tâches du mois + compteurs, dérivés du même pré-calcul.
+  const { statItems, monthTasks } = useMemo(() => {
+    const ids = new Set<string>();
+    tasksPerDom.forEach((list) => list.forEach((t) => ids.add(t.id)));
+    const monthTasks = tasks.filter((t) => ids.has(t.id));
 
-  // Tâches du mois affiché (union sur tous les jours du mois)
-  const monthTaskIds = new Set<string>();
-  for (let dom = 1; dom <= daysInMonth; dom++) {
-    tasksByDom(dom).forEach((t) => monthTaskIds.add(t.id));
-  }
-  const monthTasks = tasks.filter((t) => monthTaskIds.has(t.id));
-
-  // Compteurs scoped au mois
-  const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}-`;
-  const doneTasks = monthTasks.filter((t) =>
-    t.recurrence === "once"
-      ? t.done
-      : (t.doneDates ?? []).some((d) => d.startsWith(monthPrefix))
-  );
-  const urgentTasks = monthTasks.filter(
-    (t) => t.priority === "high" && !t.done && !(t.doneDates ?? []).some((d) => d.startsWith(monthPrefix))
-  );
-
-  const statItems: Record<string, Task[]> = {
-    all:    monthTasks,
-    done:   doneTasks,
-    urgent: urgentTasks,
-  };
+    const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}-`;
+    const doneTasks = monthTasks.filter((t) =>
+      t.recurrence === "once"
+        ? t.done
+        : (t.doneDates ?? []).some((d) => d.startsWith(monthPrefix))
+    );
+    const urgentTasks = monthTasks.filter(
+      (t) => t.priority === "high" && !t.done && !(t.doneDates ?? []).some((d) => d.startsWith(monthPrefix))
+    );
+    return {
+      monthTasks,
+      statItems: { all: monthTasks, done: doneTasks, urgent: urgentTasks } as Record<string, Task[]>,
+    };
+  }, [tasksPerDom, tasks, year, month]);
 
   return (
     <div
@@ -250,7 +239,7 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
               </div>
               <div style={{ display: "flex", gap: 6 }}>
                 <button
-                  onClick={() => { setShowAddForm((f) => !f); setAName(""); setAMembers([]); setAPrio("med"); setARec("once"); setATime(""); }}
+                  onClick={() => setShowAddForm((f) => !f)}
                   style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid var(--border)", background: showAddForm ? "var(--text)" : "var(--surface)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: showAddForm ? "var(--bg)" : "var(--muted)" }}
                 >
                   <Icon name="plus" size={14} sw={2.5} />
@@ -277,36 +266,15 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
             })()}
 
             {/* Formulaire ajout rapide */}
-            {showAddForm && (
-              <div style={{ background: "var(--surface)", borderRadius: 12, padding: "10px 12px", marginBottom: 10, display: "flex", flexDirection: "column", gap: 8, animation: "fadeUp .15s ease" }}>
-                <input
-                  autoFocus
-                  value={aName}
-                  onChange={(e) => setAName(e.target.value)}
-                  placeholder="Nom de la tâche…"
-                  style={{ ...inputStyle, background: "var(--soft)", fontSize: ".82rem" }}
-                  onKeyDown={(e) => { if (e.key === "Enter" && aName.trim()) addTaskForDay(); }}
+            {showAddForm && selDow !== null && (
+              <div style={{ marginBottom: 10 }}>
+                <TaskForm
+                  members={members}
+                  fixedDay={selDow}
+                  fixedDate={selDateStr}
+                  onSubmit={(t) => { addTask(t); setShowAddForm(false); }}
+                  onCancel={() => setShowAddForm(false)}
                 />
-                <MemberToggleBar members={members} selected={aMembers} onChange={setAMembers} />
-                <div style={{ display: "flex", gap: 6 }}>
-                  <input type="time" value={aTime} onChange={(e) => setATime(e.target.value)} style={{ ...inputStyle, flex: 1, fontSize: ".78rem", background: "var(--soft)" }} />
-                  <select value={aPrio} onChange={(e) => setAPrio(e.target.value as Priority)} style={{ ...inputStyle, width: 100, fontSize: ".78rem", background: "var(--soft)" }}>
-                    {(Object.entries(PRIORITY_CONFIG) as [Priority, { label: string; color: string; bg: string }][]).map(([k, v]) => (
-                      <option key={k} value={k}>{v.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                  {(["once", "daily", "weekly", "monthly", "annual"] as Recurrence[]).map((rec) => {
-                    const active = aRec === rec;
-                    return (
-                      <button key={rec} onClick={() => setARec(rec)} style={{ flex: "1 1 0", minWidth: 52, padding: "6px 4px", border: `1.5px solid ${active ? "var(--text)" : "var(--border)"}`, borderRadius: 8, background: active ? "var(--text)" : "var(--soft)", color: active ? "var(--bg)" : "var(--muted)", fontSize: ".63rem", fontWeight: 700, cursor: "pointer" }}>
-                        {RECURRENCE_CONFIG[rec].short}
-                      </button>
-                    );
-                  })}
-                </div>
-                <button onClick={addTaskForDay} style={{ ...primaryBtn, fontSize: ".82rem", padding: "9px" }}>Ajouter la tâche</button>
               </div>
             )}
 
@@ -369,9 +337,9 @@ export function AgendaView({ tasks, members, rooms, addTask, updateTask, toggleT
         {/* Stats du mois — cliquables, s'expandent en bas */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginTop: 18, marginBottom: 0 }}>
           {([
-            { key: "all",    label: "Ce mois",  val: monthTasks.length,  color: "var(--accent)" },
-            { key: "done",   label: "Faites",   val: doneTasks.length,   color: "var(--green)"  },
-            { key: "urgent", label: "Urgentes", val: urgentTasks.length, color: "var(--danger)" },
+            { key: "all",    label: "Ce mois",  val: monthTasks.length,            color: "var(--accent)" },
+            { key: "done",   label: "Faites",   val: statItems.done.length,        color: "var(--green)"  },
+            { key: "urgent", label: "Urgentes", val: statItems.urgent.length,      color: "var(--danger)" },
           ] as const).map(({ key, label, val, color }) => {
             const isOpen = expandedStat === key;
             return (

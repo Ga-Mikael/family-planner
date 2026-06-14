@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { ViewProps, Member, DayIndex } from "../types";
 import { Icon } from "../components/ui/Icon";
+import { SectionHeader } from "../components/ui/SectionHeader";
 import { isWeekend } from "../lib/utils";
 import { DAYS_F, DAYS_S2 } from "../lib/constants";
 
@@ -190,13 +191,8 @@ export function ScheduleView({ members, tasks, updateMember }: ViewProps) {
       {/* Charge hebdo — floating card overlapping gradient */}
       <div style={{ padding: "0 16px", marginTop: -14 }}>
         <div style={{ background: "var(--surface)", border: "1px solid var(--card-border)", boxShadow: "0 8px 28px rgba(0,0,0,.08)", borderRadius: 22, padding: "18px 18px 16px", backdropFilter: "var(--card-blur, none)", WebkitBackdropFilter: "var(--card-blur, none)" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 28, height: 28, borderRadius: 10, background: "var(--accent-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Icon name="flag" size={14} color="var(--accent)" sw={2.2} />
-              </div>
-              <h2 style={{ fontWeight: 900, fontSize: "1rem", color: "var(--text)", letterSpacing: "-.2px" }}>Charge hebdomadaire</h2>
-            </div>
+          <div style={{ marginBottom: 4 }}>
+            <SectionHeader iconName="flag" title="Charge hebdomadaire" tint="accent" />
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -245,11 +241,8 @@ export function ScheduleView({ members, tasks, updateMember }: ViewProps) {
 
       {/* Horaires des membres */}
       <div style={{ padding: "20px 16px 24px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-          <div style={{ width: 28, height: 28, borderRadius: 10, background: "var(--violet-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Icon name="briefcase" size={14} color="var(--violet)" sw={2.2} />
-          </div>
-          <h2 style={{ fontWeight: 900, fontSize: "1rem", color: "var(--text)", letterSpacing: "-.2px" }}>Horaires</h2>
+        <div style={{ marginBottom: 4 }}>
+          <SectionHeader iconName="briefcase" title="Horaires" tint="violet" />
         </div>
         {members.map(renderMemberCard)}
       </div>

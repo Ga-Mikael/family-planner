@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
-import type { Member, Task, Grocery, Meals, Reminder, Room, DayIndex, ConfettiPiece } from "../types";
+import type { Member, Task, Grocery, Reminder, Room, ConfettiPiece } from "../types";
 import { toTask, toMember, toGrocery, toReminder, toRoom, fromTask, fromMember, fromGrocery, fromReminder, fromRoom } from "../lib/converters";
+import { newId } from "../lib/utils";
 import { DEFAULT_ROOMS, MEMBER_COLORS, CONF_CLR } from "../lib/constants";
 
 /**
@@ -21,21 +22,34 @@ export function useAppData(session: Session | null) {
   const [members,    setMembers]    = useState<Member[]>([]);
   const [tasks,      setTasks]      = useState<Task[]>([]);
   const [groceries,  setGroceries]  = useState<Grocery[]>([]);
-  const [meals,      setMeals]      = useState<Meals>({ 0: "", 1: "", 2: "", 3: "", 4: "", 5: "", 6: "" });
   const [reminders,  setReminders]  = useState<Reminder[]>([]);
   const [rooms,      setRooms]      = useState<Room[]>([]);
   const [confetti,   setConfetti]   = useState<ConfettiPiece[]>([]);
+
+  // ── Undo : dernière suppression restaurable (toast "Annuler" dans App) ────
+  const [lastDeleted, setLastDeleted] = useState<{ label: string; restore: () => Promise<void> } | null>(null);
+  const lastDeletedRef = useRef<{ label: string; restore: () => Promise<void> } | null>(null);
+  useEffect(() => { lastDeletedRef.current = lastDeleted; }, [lastDeleted]);
+  const clearUndo = useCallback(() => setLastDeleted(null), []);
+  const undoDelete = useCallback(async () => {
+    const entry = lastDeletedRef.current;
+    if (!entry) return;
+    setLastDeleted(null);
+    await entry.restore();
+  }, []);
 
   // ── Refs to latest state (read inside stable callbacks without re-binding) ─
   const sessionRef   = useRef(session);
   const tasksRef     = useRef(tasks);
   const groceriesRef = useRef(groceries);
+  const remindersRef = useRef(reminders);
   const membersRef   = useRef(members);
   const roomsRef     = useRef(rooms);
 
   useEffect(() => { sessionRef.current   = session;   }, [session]);
   useEffect(() => { tasksRef.current     = tasks;     }, [tasks]);
   useEffect(() => { groceriesRef.current = groceries; }, [groceries]);
+  useEffect(() => { remindersRef.current = reminders;  }, [reminders]);
   useEffect(() => { membersRef.current   = members;   }, [members]);
   useEffect(() => { roomsRef.current     = rooms;     }, [rooms]);
 
@@ -52,16 +66,15 @@ export function useAppData(session: Session | null) {
   }, []);
 
   const loadData = useCallback(async (userId: string) => {
-    const [tR, mR, meR, gR, rR, roR] = await Promise.all([
+    const [tR, mR, gR, rR, roR] = await Promise.all([
       supabase.from("tasks").select("*").eq("user_id", userId).order("created_at"),
       supabase.from("members").select("*").eq("user_id", userId).order("sort_order"),
-      supabase.from("meals").select("*").eq("user_id", userId),
       supabase.from("groceries").select("*").eq("user_id", userId).order("created_at"),
       supabase.from("reminders").select("*").eq("user_id", userId),
       supabase.from("rooms").select("*").eq("user_id", userId).order("sort_order"),
     ]);
 
-    const firstErr = [mR.error, tR.error, meR.error, gR.error, rR.error, roR.error].find(Boolean);
+    const firstErr = [mR.error, tR.error, gR.error, rR.error, roR.error].find(Boolean);
     if (firstErr) {
       console.error("Supabase loadData error:", firstErr);
       setDbError(`Erreur base de données : ${firstErr.message}`);
@@ -82,11 +95,6 @@ export function useAppData(session: Session | null) {
     }
 
     if (tR.data && mR.data && mR.data.length > 0) setTasks(tR.data.map(toTask));
-    if (meR.data) {
-      const rec: Meals = { 0: "", 1: "", 2: "", 3: "", 4: "", 5: "", 6: "" };
-      meR.data.forEach((r) => { rec[r.day as DayIndex] = r.meal; });
-      setMeals(rec);
-    }
     if (gR.data) setGroceries(gR.data.map(toGrocery));
     if (rR.data) setReminders(rR.data.map(toReminder));
     if (roR.data && roR.data.length > 0) {
@@ -161,18 +169,6 @@ export function useAppData(session: Session | null) {
         const oldId = (p.old as { id?: string } | null)?.id ?? null;
         applyDiff(setRooms, p.eventType as "INSERT" | "UPDATE" | "DELETE", row, oldId);
       })
-      // Meals are stored one row per (user_id, day). UPSERT semantics with
-      // a composite primary key — patch the day's meal in the local Meals object.
-      .on("postgres_changes", { event: "*", schema: "public", table: "meals", filter: `user_id=eq.${userId}` }, (p) => {
-        if (p.eventType === "DELETE") {
-          const day = (p.old as { day?: number } | null)?.day;
-          if (day !== undefined) setMeals((m) => ({ ...m, [day as DayIndex]: "" }));
-          return;
-        }
-        const row = p.new as { day?: number; meal?: string } | null;
-        if (!row || row.day === undefined) return;
-        setMeals((m) => ({ ...m, [row.day as DayIndex]: row.meal ?? "" }));
-      })
       .subscribe();
 
     return () => { supabase.removeChannel(ch); };
@@ -185,9 +181,19 @@ export function useAppData(session: Session | null) {
   }, [burst, uid, logErr]);
 
   const deleteTask = useCallback(async (id: string) => {
+    const snapshot = tasksRef.current.find((t) => t.id === id);
     setTasks((p) => p.filter((t) => t.id !== id));
+    if (snapshot) {
+      setLastDeleted({
+        label: snapshot.name,
+        restore: async () => {
+          setTasks((p) => p.some((x) => x.id === snapshot.id) ? p : [...p, snapshot]);
+          const { error } = await supabase.from("tasks").insert(fromTask(snapshot, uid())); logErr("undoTask", error);
+        },
+      });
+    }
     const { error } = await supabase.from("tasks").delete().eq("id", id); logErr("deleteTask", error);
-  }, [logErr]);
+  }, [uid, logErr]);
 
   const updateTask = useCallback(async (t: Task) => {
     setTasks((p) => p.map((x) => x.id === t.id ? t : x));
@@ -234,15 +240,24 @@ export function useAppData(session: Session | null) {
   }, [logErr]);
 
   const deleteGroc = useCallback(async (id: string) => {
+    const snapshot = groceriesRef.current.find((x) => x.id === id);
     setGroceries((p) => p.filter((x) => x.id !== id));
+    if (snapshot) {
+      setLastDeleted({
+        label: snapshot.name,
+        restore: async () => {
+          setGroceries((p) => p.some((x) => x.id === snapshot.id) ? p : [...p, snapshot]);
+          const { error } = await supabase.from("groceries").insert({ ...fromGrocery(snapshot, uid()), id: snapshot.id }); logErr("undoGroc", error);
+        },
+      });
+    }
     const { error } = await supabase.from("groceries").delete().eq("id", id); logErr("deleteGroc", error);
-  }, [logErr]);
-
-  const updateMeals = useCallback(async (newMeals: Meals) => {
-    setMeals(newMeals);
-    const rows = Object.entries(newMeals).map(([d, m]) => ({ day: parseInt(d), meal: m || "", user_id: uid() }));
-    const { error } = await supabase.from("meals").upsert(rows, { onConflict: "day,user_id" }); logErr("updateMeals", error);
   }, [uid, logErr]);
+
+  const updateGrocCategory = useCallback(async (id: string, category: string | null) => {
+    setGroceries((p) => p.map((x) => x.id === id ? { ...x, category: category ?? undefined } : x));
+    const { error } = await supabase.from("groceries").update({ category }).eq("id", id); logErr("updateGrocCategory", error);
+  }, [logErr]);
 
   const addReminder = useCallback(async (r: Omit<Reminder, "id">) => {
     const row = fromReminder(r, uid());
@@ -251,9 +266,19 @@ export function useAppData(session: Session | null) {
   }, [uid, logErr]);
 
   const deleteRem = useCallback(async (id: string) => {
+    const snapshot = remindersRef.current.find((x) => x.id === id);
     setReminders((p) => p.filter((x) => x.id !== id));
+    if (snapshot) {
+      setLastDeleted({
+        label: snapshot.title,
+        restore: async () => {
+          setReminders((p) => p.some((x) => x.id === snapshot.id) ? p : [...p, snapshot]);
+          const { error } = await supabase.from("reminders").insert({ ...fromReminder(snapshot, uid()), id: snapshot.id }); logErr("undoRem", error);
+        },
+      });
+    }
     const { error } = await supabase.from("reminders").delete().eq("id", id); logErr("deleteRem", error);
-  }, [logErr]);
+  }, [uid, logErr]);
 
   const updateMember = useCallback(async (m: Member) => {
     setMembers((p) => p.map((x) => x.id === m.id ? m : x));
@@ -264,18 +289,29 @@ export function useAppData(session: Session | null) {
   const addMember = useCallback(async (m: Pick<Member, "name" | "emoji"> & { color?: string; avatarBg?: string }) => {
     const list = membersRef.current;
     const def = MEMBER_COLORS[list.length % MEMBER_COLORS.length];
-    const full: Member = { id: "m" + Date.now(), ...def, ...m, workDays: [], workHours: {} };
+    const full: Member = { id: newId("m"), ...def, ...m, workDays: [], workHours: {} };
     setMembers((p) => [...p, full]);
     const { error } = await supabase.from("members").insert(fromMember(full, uid(), list.length)); logErr("addMember", error);
   }, [uid, logErr]);
 
   const deleteMember = useCallback(async (id: string) => {
+    const snapshot = membersRef.current.find((m) => m.id === id);
+    const idx = membersRef.current.findIndex((m) => m.id === id);
     setMembers((p) => p.filter((m) => m.id !== id));
+    if (snapshot) {
+      setLastDeleted({
+        label: snapshot.name,
+        restore: async () => {
+          setMembers((p) => p.some((x) => x.id === snapshot.id) ? p : [...p, snapshot]);
+          const { error } = await supabase.from("members").insert(fromMember(snapshot, uid(), idx)); logErr("undoMember", error);
+        },
+      });
+    }
     const { error } = await supabase.from("members").delete().eq("id", id); logErr("deleteMember", error);
-  }, [logErr]);
+  }, [uid, logErr]);
 
   const addRoom = useCallback(async (r: Omit<Room, "id">) => {
-    const full: Room = { id: "rm" + Date.now(), ...r };
+    const full: Room = { id: newId("rm"), ...r };
     const len = roomsRef.current.length;
     setRooms((p) => [...p, full]);
     const { error } = await supabase.from("rooms").insert(fromRoom(full, uid(), len)); logErr("addRoom", error);
@@ -283,8 +319,20 @@ export function useAppData(session: Session | null) {
 
   const deleteRoom = useCallback(async (id: string) => {
     if (id === "r-general") return;
+    const snapshot = roomsRef.current.find((r) => r.id === id);
+    const idx = roomsRef.current.findIndex((r) => r.id === id);
     setRooms((p) => p.filter((r) => r.id !== id));
     setTasks((p) => p.map((t) => t.roomId === id ? { ...t, roomId: "r-general" } : t));
+    if (snapshot) {
+      setLastDeleted({
+        label: snapshot.name,
+        // Note : les tâches déplacées vers "Général" ne sont pas réaffectées.
+        restore: async () => {
+          setRooms((p) => p.some((x) => x.id === snapshot.id) ? p : [...p, snapshot]);
+          const { error } = await supabase.from("rooms").insert(fromRoom(snapshot, uid(), idx)); logErr("undoRoom", error);
+        },
+      });
+    }
     await supabase.from("tasks").update({ room_id: "r-general" }).eq("room_id", id).eq("user_id", uid());
     const { error } = await supabase.from("rooms").delete().eq("id", id); logErr("deleteRoom", error);
   }, [uid, logErr]);
@@ -301,12 +349,13 @@ export function useAppData(session: Session | null) {
 
   return {
     dataReady, dbError, setDbError, needsSetup,
-    members, tasks, groceries, meals, reminders, rooms,
+    members, tasks, groceries, reminders, rooms,
     confetti, burst,
     addTask, deleteTask, updateTask, toggleTask,
-    addGrocery, toggleGroc, deleteGroc,
-    updateMeals, addReminder, deleteRem,
+    addGrocery, toggleGroc, deleteGroc, updateGrocCategory,
+    addReminder, deleteRem,
     updateMember, addMember, deleteMember,
     addRoom, deleteRoom, finishSetup,
+    lastDeleted, undoDelete, clearUndo,
   };
 }

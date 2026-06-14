@@ -48,6 +48,8 @@ export interface Grocery {
   name: string;
   qty: string;
   done: boolean;
+  /** Catégorie rayon choisie manuellement — sinon auto-déduite du nom. */
+  category?: string;
 }
 
 export interface Reminder {
@@ -58,8 +60,6 @@ export interface Reminder {
   emoji: string;
   date?: string; // "YYYY-MM-DD" — rappel unique à une date précise (optionnel)
 }
-
-export type Meals = Record<DayIndex, string>;
 
 export interface Room {
   id: string;
@@ -88,7 +88,6 @@ export type ViewProps = {
   tasks: Task[];
   rooms: Room[];
   groceries: Grocery[];
-  meals: Meals;
   reminders: Reminder[];
   selDay: DayIndex;
   setSelDay: (d: DayIndex) => void;
@@ -101,7 +100,7 @@ export type ViewProps = {
   addGrocery: (g: Omit<Grocery, "id">) => void;
   toggleGroc: (id: string) => void;
   deleteGroc: (id: string) => void;
-  updateMeals: (m: Meals) => void;
+  updateGrocCategory: (id: string, category: string | null) => void;
   addReminder: (r: Omit<Reminder, "id">) => void;
   deleteRem: (id: string) => void;
   updateMember: (m: Member) => void;

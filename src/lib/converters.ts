@@ -2,7 +2,20 @@
 // de l'application (camelCase). Ces fonctions sont les seuls endroits où l'on
 // touche aux noms de colonnes Supabase.
 
-import type { Task, Member, Grocery, Reminder, Room, IconName, Meals, DayIndex } from "../types";
+import type { Task, Member, Grocery, Reminder, Room, IconName } from "../types";
+import { newId } from "./utils";
+
+/** JSON.parse défensif — une valeur corrompue en base ne doit pas blanchir l'app. */
+function safeParseDates(raw: unknown): string[] | undefined {
+  if (typeof raw !== "string" || !raw) return undefined;
+  try {
+    const v = JSON.parse(raw);
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : undefined;
+  } catch {
+    console.warn("done_dates illisible, ignoré:", raw);
+    return undefined;
+  }
+}
 
 // ─── DB → App ──────────────────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -18,7 +31,7 @@ export const toTask = (r: any): Task => ({
   note:       r.note       ?? undefined,
   dueTime:    r.due_time   ?? undefined,
   dueDate:    r.due_date   ?? undefined,
-  doneDates:  r.done_dates ? JSON.parse(r.done_dates) : undefined,
+  doneDates:  safeParseDates(r.done_dates),
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -35,10 +48,11 @@ export const toMember = (r: any): Member => ({
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const toGrocery = (r: any): Grocery => ({
-  id:   r.id,
-  name: r.name,
-  qty:  r.qty,
-  done: r.done,
+  id:       r.id,
+  name:     r.name,
+  qty:      r.qty,
+  done:     r.done,
+  category: r.category ?? undefined,
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -58,12 +72,6 @@ export const toRoom = (r: any): Room => ({
   icon:  r.icon as IconName,
   color: r.color,
 });
-
-export const toMeals = (rows: { day: number; meal: string }[]): Meals => {
-  const rec: Meals = { 0: "", 1: "", 2: "", 3: "", 4: "", 5: "", 6: "" };
-  rows.forEach((r) => { rec[r.day as DayIndex] = r.meal; });
-  return rec;
-};
 
 // ─── App → DB ──────────────────────────────────────────────────────────────
 export const fromTask = (t: Task, uid: string) => ({
@@ -98,10 +106,11 @@ export const fromMember = (m: Member, uid: string, order: number) => ({
 });
 
 export const fromGrocery = (g: Omit<Grocery, "id">, uid: string) => ({
-  id:      "g" + Date.now(),
+  id:      newId("g"),
   name:    g.name,
   qty:     g.qty,
   done:    g.done,
+  ...(g.category ? { category: g.category } : {}),
   user_id: uid,
 });
 
@@ -109,7 +118,7 @@ export const fromReminder = (
   r: Omit<Reminder, "id">,
   uid: string,
 ) => ({
-  id:      "r" + Date.now(),
+  id:      newId("r"),
   title:   r.title,
   time:    r.time,
   day:     r.day,

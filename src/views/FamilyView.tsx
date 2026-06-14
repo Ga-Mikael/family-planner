@@ -1,14 +1,12 @@
 import { useState } from "react";
-import type { ViewProps, Task, DayIndex, Priority, Recurrence, IconName } from "../types";
+import type { ViewProps, Task, IconName } from "../types";
 import { Icon } from "../components/ui/Icon";
 import { Empty } from "../components/ui/Empty";
-import { SectionTitle } from "../components/ui/SectionTitle";
-import { MemberToggleBar } from "../components/ui/MemberToggleBar";
-import { WorkConflictAlert } from "../components/ui/WorkConflictAlert";
+import { SectionHeader } from "../components/ui/SectionHeader";
 import { FullTaskCard } from "../components/tasks/FullTaskCard";
 import { EditTaskModal } from "../components/tasks/EditTaskModal";
-import { todayIdx, getWorkConflict } from "../lib/utils";
-import { DAYS_F, MEMBER_COLORS, PRIORITY_CONFIG, RECURRENCE_CONFIG } from "../lib/constants";
+import { TaskForm } from "../components/tasks/TaskForm";
+import { MEMBER_COLORS } from "../lib/constants";
 import { inputStyle, primaryBtn, ghostBtn } from "../styles";
 import { categorize, categoryMeta, GROCERY_CATEGORIES } from "../lib/grocery-category";
 
@@ -19,13 +17,13 @@ interface FamilyViewProps extends ViewProps {
 
 export function FamilyView({
   members, tasks, rooms, groceries,
-  addGrocery, toggleGroc, deleteGroc,
+  addGrocery, toggleGroc, deleteGroc, updateGrocCategory,
   addTask, toggleTask, deleteTask, updateTask,
   addMember, deleteMember, addRoom, deleteRoom,
   onSignOut, userEmail,
   isDark, toggleTheme,
 }: FamilyViewProps) {
-  const [section,        setSection]        = useState<"foyer" | "cuisine">("foyer");
+  const [section,        setSection]        = useState<"foyer" | "cuisine" | "reglages">("foyer");
   const [selRoom,        setSelRoom]        = useState<string | null>(null);
   const [showMemberForm, setShowMemberForm] = useState(false);
   const [newName,        setNewName]        = useState("");
@@ -40,21 +38,7 @@ export function FamilyView({
 
   // Formulaire tâche pièce
   const [showRoomForm, setShowRoomForm] = useState(false);
-  const [rfName,       setRfName]       = useState("");
-  const [rfMs,         setRfMs]         = useState<string[]>([]);
-  const [rfDay,        setRfDay]        = useState(String(todayIdx()));
-  const [rfP,          setRfP]          = useState<Priority>("med");
-  const [rfRec,        setRfRec]        = useState<Recurrence>("once");
-  const [rfTime,       setRfTime]       = useState("");
   const [editingTask,  setEditingTask]  = useState<Task | null>(null);
-
-  const roomConflict = getWorkConflict(rfMs.join(","), parseInt(rfDay) as DayIndex, rfTime, members);
-
-  const submitRoomTask = () => {
-    if (!rfName.trim() || !selRoom || roomConflict) return;
-    addTask({ id: "t" + Date.now(), name: rfName.trim(), memberId: rfMs.join(","), roomId: selRoom, day: parseInt(rfDay) as DayIndex, priority: rfP, recurrence: rfRec, done: false, dueTime: rfTime || undefined });
-    setRfName(""); setRfMs([]); setRfDay(String(todayIdx())); setRfP("med"); setRfRec("once"); setRfTime(""); setShowRoomForm(false);
-  };
 
   // Courses
   const [gn,    setGn]    = useState("");
@@ -75,18 +59,11 @@ export function FamilyView({
             </div>
             <h1 style={{ fontWeight: 900, fontSize: "1.65rem", lineHeight: 1, color: "var(--text)", letterSpacing: "-.5px" }}>Notre Foyer</h1>
           </div>
-          <button
-            aria-label="Déconnexion"
-            onClick={onSignOut}
-            style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 99, background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.4)", color: "var(--muted)", fontSize: ".7rem", fontWeight: 700, cursor: "pointer", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }}
-          >
-            <Icon name="lock" size={12} /> Sortir
-          </button>
         </div>
 
         {/* Section pill toggle */}
         <div style={{ display: "flex", gap: 6, padding: 4, borderRadius: 14, background: "rgba(255,255,255,.55)", border: "1px solid rgba(255,255,255,.4)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }} className="fp-tab-bar">
-          {([["foyer", "Foyer", "home" as IconName], ["cuisine", "Cuisine", "chef" as IconName]] as const).map(([s, l, ic]) => {
+          {([["foyer", "Foyer", "home" as IconName], ["cuisine", "Cuisine", "chef" as IconName], ["reglages", "Réglages", "settings" as IconName]] as const).map(([s, l, ic]) => {
             const active = section === s;
             return (
               <button
@@ -124,20 +101,19 @@ export function FamilyView({
             </div>
 
             {/* Membres — collapsible */}
-            <button
-              aria-expanded={membersExpanded}
+            <SectionHeader
+              iconName="users"
+              title="Les membres"
+              tint="accent"
               onClick={() => setMembersExpanded((v) => !v)}
-              style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "0 0 10px", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
-            >
-              <div style={{ width: 28, height: 28, borderRadius: 10, background: "var(--accent-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Icon name="users" size={14} color="var(--accent)" sw={2.2} />
-              </div>
-              <h2 style={{ fontWeight: 900, fontSize: "1rem", color: "var(--text)", letterSpacing: "-.2px", flex: 1 }}>Les membres</h2>
-              <span style={{ fontSize: ".7rem", fontWeight: 700, color: "var(--muted)" }}>{members.length}</span>
-              <div style={{ width: 26, height: 26, borderRadius: 99, background: "var(--soft)", display: "flex", alignItems: "center", justifyContent: "center", transform: membersExpanded ? "rotate(90deg)" : "rotate(0)", transition: "transform .25s ease" }}>
-                <Icon name="chevronRight" size={12} color="var(--muted)" sw={2.5} />
-              </div>
-            </button>
+              ariaExpanded={membersExpanded}
+              right={<>
+                <span style={{ fontSize: ".7rem", fontWeight: 700, color: "var(--muted)" }}>{members.length}</span>
+                <div style={{ width: 26, height: 26, borderRadius: 99, background: "var(--soft)", display: "flex", alignItems: "center", justifyContent: "center", transform: membersExpanded ? "rotate(90deg)" : "rotate(0)", transition: "transform .25s ease" }}>
+                  <Icon name="chevronRight" size={12} color="var(--muted)" sw={2.5} />
+                </div>
+              </>}
+            />
 
             {membersExpanded && members.map((m) => {
               const mt = tasks.filter((t) => t.memberId === m.id);
@@ -215,20 +191,19 @@ export function FamilyView({
 
             {/* Pièces — collapsible */}
             <div style={{ marginTop: 20 }}>
-              <button
-                aria-expanded={roomsExpanded}
+              <SectionHeader
+                iconName="home"
+                title="Les pièces"
+                tint="violet"
                 onClick={() => setRoomsExpanded((v) => !v)}
-                style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "0 0 10px", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
-              >
-                <div style={{ width: 28, height: 28, borderRadius: 10, background: "var(--violet-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Icon name="home" size={14} color="var(--violet)" sw={2.2} />
-                </div>
-                <h2 style={{ fontWeight: 900, fontSize: "1rem", color: "var(--text)", letterSpacing: "-.2px", flex: 1 }}>Les pièces</h2>
-                <span style={{ fontSize: ".7rem", fontWeight: 700, color: "var(--muted)" }}>{rooms.length}</span>
-                <div style={{ width: 26, height: 26, borderRadius: 99, background: "var(--soft)", display: "flex", alignItems: "center", justifyContent: "center", transform: roomsExpanded ? "rotate(90deg)" : "rotate(0)", transition: "transform .25s ease" }}>
-                  <Icon name="chevronRight" size={12} color="var(--muted)" sw={2.5} />
-                </div>
-              </button>
+                ariaExpanded={roomsExpanded}
+                right={<>
+                  <span style={{ fontSize: ".7rem", fontWeight: 700, color: "var(--muted)" }}>{rooms.length}</span>
+                  <div style={{ width: 26, height: 26, borderRadius: 99, background: "var(--soft)", display: "flex", alignItems: "center", justifyContent: "center", transform: roomsExpanded ? "rotate(90deg)" : "rotate(0)", transition: "transform .25s ease" }}>
+                    <Icon name="chevronRight" size={12} color="var(--muted)" sw={2.5} />
+                  </div>
+                </>}
+              />
               {roomsExpanded && (<>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                 {rooms.map((r) => {
@@ -289,9 +264,16 @@ export function FamilyView({
               </>)}
             </div>
 
+          </>
+        )}
+
+        {/* ── RÉGLAGES ── */}
+        {section === "reglages" && (
+          <div style={{ animation: "fadeUp .25s ease" }}>
+            <SectionHeader iconName="settings" title="Réglages" tint="violet" />
+
             {/* Toggle thème */}
             <div style={{
-              marginTop: 20,
               background: "var(--soft)", border: "1px solid var(--border)",
               borderRadius: 14, padding: "12px 14px", marginBottom: 10,
               display: "flex", alignItems: "center", gap: 10,
@@ -305,11 +287,13 @@ export function FamilyView({
                   {isDark ? "Activé — verre / nuit" : "Désactivé — pastel / jour"}
                 </div>
               </div>
-              {/* Toggle pill */}
-              <div
+              <button
+                role="switch"
+                aria-checked={isDark}
+                aria-label="Mode sombre"
                 onClick={toggleTheme}
                 style={{
-                  width: 48, height: 28, borderRadius: 28, cursor: "pointer",
+                  width: 48, height: 28, borderRadius: 28, cursor: "pointer", border: "none", padding: 0,
                   background: isDark ? "var(--accent)" : "var(--border)",
                   position: "relative", transition: "background .3s", flexShrink: 0,
                 }}
@@ -324,11 +308,11 @@ export function FamilyView({
                 }}>
                   <Icon name={isDark ? "moon" : "sun"} size={12} color={isDark ? "var(--accent)" : "var(--warn)"} sw={2.5} />
                 </div>
-              </div>
+              </button>
             </div>
 
             {/* Compte */}
-            <div style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 14, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 14, padding: "12px 14px", marginBottom: 10, display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ width: 34, height: 34, borderRadius: 10, background: "var(--soft2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Icon name="mail" size={16} color="var(--muted)" />
               </div>
@@ -338,7 +322,15 @@ export function FamilyView({
               </div>
               <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--green)", boxShadow: "0 0 6px var(--green)" }} />
             </div>
-          </>
+
+            {/* Déconnexion — action sensible, isolée en bas (destructive-nav-separation) */}
+            <button
+              onClick={onSignOut}
+              style={{ width: "100%", marginTop: 16, padding: "12px", background: "var(--danger-bg)", border: "1px solid var(--danger)", borderRadius: 14, color: "var(--danger)", fontSize: ".82rem", fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+            >
+              <Icon name="lock" size={14} sw={2.2} /> Se déconnecter
+            </button>
+          </div>
         )}
 
         {/* ── PIÈCE DÉTAIL ── */}
@@ -369,34 +361,14 @@ export function FamilyView({
             ))}
 
             {showRoomForm ? (
-              <div style={{ background: "var(--soft)", border: "1.5px solid var(--border)", borderRadius: 14, padding: 14, marginTop: 8, animation: "fadeUp .2s ease" }}>
-                <input autoFocus value={rfName} onChange={(e) => setRfName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && !roomConflict && submitRoomTask()} placeholder={`Nouvelle tâche — ${room.name}…`} style={{ ...inputStyle, marginBottom: 8, background: "var(--surface)" }} />
-                <MemberToggleBar members={members} selected={rfMs} onChange={setRfMs} />
-                <select value={rfDay} onChange={(e) => setRfDay(e.target.value)} style={{ ...inputStyle, marginBottom: 8, background: "var(--surface)" }}>
-                  {DAYS_F.map((d, i) => <option key={i} value={i}>{d}</option>)}
-                </select>
-                <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                  <div style={{ display: "flex", gap: 5, flex: 2 }}>
-                    {(["low", "med", "high"] as Priority[]).map((p) => {
-                      const c = PRIORITY_CONFIG[p];
-                      return <button key={p} onClick={() => setRfP(p)} style={{ flex: 1, padding: "7px 4px", border: `1.5px solid ${rfP === p ? c.color : "var(--border)"}`, borderRadius: 8, background: rfP === p ? c.bg : "var(--surface)", color: rfP === p ? c.color : "var(--muted)", fontSize: ".68rem", fontWeight: 700, cursor: "pointer" }}>{c.label}</button>;
-                    })}
-                  </div>
-                  <input type="time" value={rfTime} onChange={(e) => setRfTime(e.target.value)} style={{ ...inputStyle, flex: 1, background: "var(--surface)" }} />
-                </div>
-                <WorkConflictAlert conflict={roomConflict} />
-                <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 10 }}>
-                  {(["once", "daily", "weekly", "monthly", "annual"] as Recurrence[]).map((rec) => {
-                    const a = rfRec === rec;
-                    return <button key={rec} onClick={() => setRfRec(rec)} style={{ flex: "1 1 0", minWidth: 54, padding: "6px 4px", border: `1.5px solid ${a ? "var(--text)" : "var(--border)"}`, borderRadius: 8, background: a ? "var(--text)" : "var(--surface)", color: a ? "var(--bg)" : "var(--muted)", fontSize: ".65rem", fontWeight: 700, cursor: "pointer" }}>{RECURRENCE_CONFIG[rec].short}</button>;
-                  })}
-                </div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button onClick={submitRoomTask} disabled={!!roomConflict} style={{ ...primaryBtn, flex: 1, padding: "9px 16px", fontSize: ".82rem", opacity: roomConflict ? 0.6 : 1, cursor: roomConflict ? "not-allowed" : "pointer" }}>
-                    {roomConflict ? "⚠️ Conflit" : "Ajouter ✓"}
-                  </button>
-                  <button onClick={() => setShowRoomForm(false)} style={{ ...ghostBtn, padding: "9px 16px", fontSize: ".82rem" }}>Annuler</button>
-                </div>
+              <div style={{ marginTop: 8 }}>
+                <TaskForm
+                  members={members}
+                  fixedRoomId={room.id}
+                  placeholder={`Nouvelle tâche — ${room.name}…`}
+                  onSubmit={(t) => { addTask(t); setShowRoomForm(false); }}
+                  onCancel={() => setShowRoomForm(false)}
+                />
               </div>
             ) : (
               <button onClick={() => setShowRoomForm(true)} style={{ width: "100%", padding: "10px", background: "var(--soft)", border: `1.5px dashed ${room.color}60`, borderRadius: 12, color: room.color, fontSize: ".8rem", fontWeight: 600, cursor: "pointer", marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
@@ -410,10 +382,10 @@ export function FamilyView({
         {section === "cuisine" && (() => {
           const remaining = groceries.filter((g) => !g.done).length;
 
-          // Group by category, preserving each category's display order.
+          // Group by category — manual override (g.category) wins over auto-detect.
           const groups = new Map<string, typeof groceries>();
           for (const g of groceries) {
-            const cat = categorize(g.name);
+            const cat = g.category ?? categorize(g.name);
             const arr = groups.get(cat) ?? [];
             arr.push(g);
             groups.set(cat, arr);
@@ -424,7 +396,12 @@ export function FamilyView({
 
           return (
             <>
-              <SectionTitle iconName="cart" title={`Courses${remaining > 0 ? " · " + remaining + " restant" + (remaining > 1 ? "s" : "") : ""}`} />
+              <SectionHeader
+                iconName="cart"
+                title="Courses"
+                tint="green"
+                right={remaining > 0 ? <span style={{ fontSize: ".7rem", fontWeight: 700, color: "var(--muted)" }}>{remaining} restant{remaining > 1 ? "s" : ""}</span> : undefined}
+              />
 
               {/* Ajout */}
               <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
@@ -487,6 +464,24 @@ export function FamilyView({
                                 <div style={{ width: 22, height: 22, borderRadius: "50%", border: `2px solid ${g.done ? "var(--green)" : "var(--border)"}`, background: g.done ? "var(--green)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: ".75rem", flexShrink: 0, transition: "all .2s" }}>{g.done ? "✓" : ""}</div>
                                 <span style={{ flex: 1, fontWeight: 600, fontSize: ".875rem", textDecoration: g.done ? "line-through" : "none" }}>{g.name}</span>
                                 {g.qty && <span style={{ fontSize: ".75rem", color: "var(--muted2)", fontWeight: 600 }}>{g.qty}</span>}
+                                {/* Badge catégorie cliquable — select natif superposé (wheel iOS) */}
+                                <div style={{ position: "relative", flexShrink: 0, display: "flex" }} onClick={(e) => e.stopPropagation()}>
+                                  <span aria-hidden="true" style={{ fontSize: ".8rem", opacity: .6 }}>{meta.icon}</span>
+                                  <select
+                                    aria-label={`Changer le rayon de ${g.name}`}
+                                    value={g.category ?? categorize(g.name)}
+                                    onChange={(e) => {
+                                      const v = e.target.value;
+                                      // Si l'utilisateur choisit la catégorie auto-détectée → on efface l'override.
+                                      updateGrocCategory(g.id, v === categorize(g.name) ? null : v);
+                                    }}
+                                    style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%" }}
+                                  >
+                                    {GROCERY_CATEGORIES.map((c) => (
+                                      <option key={c.id} value={c.id}>{c.icon} {c.label}</option>
+                                    ))}
+                                  </select>
+                                </div>
                                 <button
                                   aria-label={`Supprimer ${g.name}`}
                                   onClick={(e) => { e.stopPropagation(); deleteGroc(g.id); }}

@@ -34,6 +34,11 @@ function FullTaskCardImpl({ task, members, rooms, onToggle, onDelete, onEdit }: 
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         {/* Checkbox */}
         <div
+          role="checkbox"
+          aria-checked={task.done}
+          aria-label={`${task.name}${task.done ? " — faite" : ""}`}
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(task.id); } }}
           onClick={() => onToggle(task.id)}
           style={{
             width: 24, height: 24, borderRadius: 8,
@@ -98,6 +103,7 @@ function FullTaskCardImpl({ task, members, rooms, onToggle, onDelete, onEdit }: 
         )}
 
         <button
+          aria-label={`Exporter ${task.name} vers le calendrier`}
           onClick={() => exportToCalendar(task, taskMembers.map((m) => m.name))}
           title="Ajouter au calendrier Apple"
           style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted2)", padding: 4, display: "flex" }}
@@ -105,12 +111,14 @@ function FullTaskCardImpl({ task, members, rooms, onToggle, onDelete, onEdit }: 
           <Icon name="calendar" size={13} sw={1.8} />
         </button>
         <button
+          aria-label={`Modifier ${task.name}`}
           onClick={() => onEdit(task)}
           style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted2)", padding: 4, display: "flex" }}
         >
           <Icon name="edit" size={13} sw={1.8} />
         </button>
         <button
+          aria-label={`Supprimer ${task.name}`}
           onClick={() => onDelete(task.id)}
           style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted2)", padding: 4, display: "flex" }}
         >

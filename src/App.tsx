@@ -4,7 +4,6 @@ import type { TabId } from "./types";
 import { supabase } from "./lib/supabase";
 import { todayIdx, isWeekend } from "./lib/utils";
 import { useAppData } from "./hooks/useAppData";
-import { useNotifications } from "./hooks/useNotifications";
 import { useTheme } from "./hooks/useTheme";
 import { LoadingScreen }    from "./components/LoadingScreen";
 import { LoginScreen }      from "./components/LoginScreen";
@@ -34,8 +33,14 @@ export default function App() {
   }, []);
 
   const data = useAppData(session);
-  useNotifications(data.tasks, data.reminders);
   const { isDark, toggleTheme } = useTheme();
+
+  // Toast undo : disparaît seul après 5 s.
+  useEffect(() => {
+    if (!data.lastDeleted) return;
+    const t = setTimeout(() => data.clearUndo(), 5000);
+    return () => clearTimeout(t);
+  }, [data.lastDeleted, data.clearUndo, data]);
 
   // Memoize derived state to avoid recomputing on every render.
   const weekendWarn = useMemo(
@@ -47,21 +52,22 @@ export default function App() {
   // re-render when only an unrelated piece of App state changes.
   const vp = useMemo(() => ({
     members: data.members, tasks: data.tasks, rooms: data.rooms,
-    groceries: data.groceries, meals: data.meals, reminders: data.reminders,
+    groceries: data.groceries, reminders: data.reminders,
     selDay, setSelDay, weekOff, setWeekOff,
     addTask: data.addTask, deleteTask: data.deleteTask,
     toggleTask: data.toggleTask, updateTask: data.updateTask,
     addGrocery: data.addGrocery, toggleGroc: data.toggleGroc, deleteGroc: data.deleteGroc,
-    updateMeals: data.updateMeals, addReminder: data.addReminder, deleteRem: data.deleteRem,
+    updateGrocCategory: data.updateGrocCategory,
+    addReminder: data.addReminder, deleteRem: data.deleteRem,
     updateMember: data.updateMember, addMember: data.addMember, deleteMember: data.deleteMember,
     addRoom: data.addRoom, deleteRoom: data.deleteRoom,
     weekendWarn, burst: data.burst,
     isDark, toggleTheme,
   }), [
-    data.members, data.tasks, data.rooms, data.groceries, data.meals, data.reminders,
+    data.members, data.tasks, data.rooms, data.groceries, data.reminders,
     selDay, weekOff,
     data.addTask, data.deleteTask, data.toggleTask, data.updateTask,
-    data.addGrocery, data.toggleGroc, data.deleteGroc, data.updateMeals,
+    data.addGrocery, data.toggleGroc, data.deleteGroc, data.updateGrocCategory,
     data.addReminder, data.deleteRem,
     data.updateMember, data.addMember, data.deleteMember,
     data.addRoom, data.deleteRoom,
@@ -104,6 +110,32 @@ export default function App() {
           {tab === "family"   && <FamilyView   {...vp} onSignOut={signOut} userEmail={session.user.email ?? ""} />}
         </Suspense>
       </div>
+
+      {/* Toast undo suppression */}
+      {data.lastDeleted && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{ position: "fixed", bottom: 84, left: "50%", transform: "translateX(-50%)", width: "calc(100% - 32px)", maxWidth: 398, zIndex: 1100, background: "var(--text)", color: "var(--bg)", borderRadius: 14, padding: "11px 14px", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 8px 28px rgba(0,0,0,.25)", animation: "fadeUp .2s ease" }}
+        >
+          <span style={{ flex: 1, fontSize: ".82rem", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            « {data.lastDeleted.label} » supprimé
+          </span>
+          <button
+            onClick={() => data.undoDelete()}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--accent)", fontSize: ".82rem", fontWeight: 800, padding: "2px 6px", flexShrink: 0 }}
+          >
+            Annuler
+          </button>
+          <button
+            aria-label="Fermer"
+            onClick={() => data.clearUndo()}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--bg)", opacity: .6, padding: 2, display: "flex", flexShrink: 0, fontSize: ".9rem", lineHeight: 1 }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       <BottomNav tab={tab} setTab={setTab} weekendWarn={weekendWarn} />
     </div>

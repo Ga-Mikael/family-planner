@@ -8,3 +8,29 @@
   from   = "/*"
   to     = "/index.html"
   status = 200
+
+# ── Headers de sécurité ──────────────────────────────────────────────────────
+# CSP notes :
+#  - style-src 'unsafe-inline' requis : l'app utilise des styles inline React
+#  - connect-src : Supabase REST + Realtime (wss)
+#  - frame-ancestors 'none' : anti-clickjacking (remplace X-Frame-Options)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://jnpiblsxmqulrlqhdzji.supabase.co wss://jnpiblsxmqulrlqhdzji.supabase.co; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    X-Content-Type-Options  = "nosniff"
+    X-Frame-Options         = "DENY"
+    Referrer-Policy         = "strict-origin-when-cross-origin"
+    Permissions-Policy      = "camera=(), microphone=(), geolocation=(), payment=()"
+
+# Cache long pour les assets fingerprintés par Vite
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Le service worker doit toujours être revalidé
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"

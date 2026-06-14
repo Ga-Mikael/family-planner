@@ -1,6 +1,18 @@
 import type { DayIndex, Member, Task, Vacation } from "../types";
 import { PASTEL, VACANCES } from "./constants";
 
+// ─── IDs ───────────────────────────────────────────────────────────────────
+
+/**
+ * Génère un id unique préfixé. crypto.randomUUID (iOS 15.4+) évite les
+ * collisions quand deux appareils créent une entité dans la même seconde
+ * (l'ancien `prefix + Date.now()` écrasait silencieusement via upsert).
+ */
+export const newId = (prefix: string): string =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? `${prefix}-${crypto.randomUUID()}`
+    : `${prefix}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
 // ─── Jours ─────────────────────────────────────────────────────────────────
 
 /** Retourne le jour de la semaine actuel en DayIndex (Lundi = 0, Dimanche = 6) */
@@ -92,8 +104,14 @@ export const dateKey = (d: Date): string =>
 export const toDateStr = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
+/** Cache par année — les fériés sont immuables, inutile de recalculer Pâques
+    pour chaque cellule de calendrier. */
+const holidaysCache = new Map<number, Map<string, string>>();
+
 /** Retourne une Map<dateKey, nomFérié> pour une année donnée */
 export function getFrenchHolidays(year: number): Map<string, string> {
+  const cached = holidaysCache.get(year);
+  if (cached) return cached;
   const h = new Map<string, string>();
   const add = (month: number, day: number, name: string) =>
     h.set(dateKey(new Date(year, month - 1, day)), name);
@@ -113,6 +131,7 @@ export function getFrenchHolidays(year: number): Map<string, string> {
   h.set(dateKey(addDays(easter, 39)), "Ascension");
   h.set(dateKey(addDays(easter, 50)), "Lundi de Pentecôte");
 
+  holidaysCache.set(year, h);
   return h;
 }
 

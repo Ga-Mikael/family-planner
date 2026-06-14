@@ -1,17 +1,14 @@
 import { useMemo, useState } from "react";
-import type { ViewProps, Task, DayIndex, Priority, Recurrence } from "../types";
+import type { ViewProps, Task, DayIndex } from "../types";
 import { Icon } from "../components/ui/Icon";
 import { Chip } from "../components/ui/Chip";
 import { Empty } from "../components/ui/Empty";
-import { PgHdr } from "../components/ui/PgHdr";
-import { MemberToggleBar } from "../components/ui/MemberToggleBar";
-import { WorkConflictAlert } from "../components/ui/WorkConflictAlert";
 import { FullTaskCard } from "../components/tasks/FullTaskCard";
 import { EditTaskModal } from "../components/tasks/EditTaskModal";
-import { todayIdx, isWeekend, getWorkConflict } from "../lib/utils";
-import { DAYS_F, PRIORITY_CONFIG, RECURRENCE_CONFIG } from "../lib/constants";
-import { inputStyle, primaryBtn, ghostBtn } from "../styles";
-import { usePushSubscription } from "../hooks/usePushSubscription";
+import { TaskForm } from "../components/tasks/TaskForm";
+import { todayIdx, isWeekend } from "../lib/utils";
+import { DAYS_F } from "../lib/constants";
+import { inputStyle, primaryBtn } from "../styles";
 
 export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTask, deleteTask, updateTask, addReminder, deleteRem }: ViewProps) {
   // ── Onglets ───────────────────────────────────────────────────────────────
@@ -19,25 +16,10 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
 
   // ── Tâches ────────────────────────────────────────────────────────────────
   const [show,       setShow]       = useState(false);
-  const [fname,      setFname]      = useState("");
-  const [fms,        setFms]        = useState<string[]>([]);
-  const [fr,         setFr]         = useState("r-general");
-  const [fd,         setFd]         = useState<string>(String(todayIdx()));
-  const [fp,         setFp]         = useState<Priority>("med");
-  const [frec,       setFrec]       = useState<Recurrence>("once");
-  const [ftime,      setFtime]      = useState("");
-  const [fnote,      setFnote]      = useState("");
+  const [prefillName, setPrefillName] = useState("");
   const [filt,       setFilt]       = useState<"all" | "todo" | "done" | "high" | "weekend">("all");
   const [search,     setSearch]     = useState("");
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-
-  const conflict = getWorkConflict(fms.join(","), parseInt(fd) as DayIndex, ftime, members);
-
-  const submit = () => {
-    if (!fname.trim() || conflict) return;
-    addTask({ id: "t" + Date.now(), name: fname.trim(), memberId: fms.join(","), roomId: fr, day: parseInt(fd) as DayIndex, priority: fp, recurrence: frec, done: false, note: fnote || undefined, dueTime: ftime || undefined });
-    setFname(""); setFms([]); setFr("r-general"); setFp("med"); setFrec("once"); setFtime(""); setFnote(""); setShow(false);
-  };
 
   // Recompute only when tasks/search/filt change. Skip on unrelated state.
   const filtered = useMemo(() => {
@@ -66,26 +48,6 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
   const [reDayVal,   setReDayVal]   = useState(String(todayIdx()));
   const [reEmojiVal, setReEmojiVal] = useState("🔔");
   const [reDate,     setReDate]     = useState("");
-
-  const push = usePushSubscription();
-  const [notifPerm, setNotifPerm] = useState<NotificationPermission>(
-    typeof Notification !== "undefined" ? Notification.permission : "default"
-  );
-  const requestNotifPerm = async () => {
-    if (typeof Notification === "undefined") return;
-    const perm = await Notification.requestPermission();
-    setNotifPerm(perm);
-    if (perm === "granted") {
-      const opts = { body: "Notifications activées pour tâches et rappels !", icon: "/icons/icon-192.png", badge: "/icons/icon-192.png" };
-      try {
-        if ("serviceWorker" in navigator) {
-          const reg = await navigator.serviceWorker.ready;
-          if (reg) { reg.showNotification("Notre Foyer 🏠", opts); return; }
-        }
-        new Notification("Notre Foyer 🏠", opts);
-      } catch { /* fail silently */ }
-    }
-  };
 
   const submitReminder = () => {
     if (!rt.trim()) return;
@@ -135,76 +97,12 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
       {/* ── ONGLET TÂCHES ── */}
       {activeTab === "tasks" && (
         <div style={{ padding: "14px 16px" }}>
-          {/* Bannière notifications */}
-          {notifPerm !== "granted" && notifPerm !== "denied" && (
-            <div style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 12, padding: "10px 14px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10 }}>
-              <Icon name="bell" size={15} color="var(--accent)" />
-              <div style={{ flex: 1, fontSize: ".72rem", color: "var(--muted)" }}>
-                Activez les notifications pour recevoir une alerte sur les tâches avec une heure.
-              </div>
-              <button onClick={requestNotifPerm} style={{ padding: "5px 10px", border: "none", borderRadius: 8, background: "var(--accent)", color: "var(--bg)", fontSize: ".72rem", fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
-                Activer
-              </button>
-            </div>
-          )}
-          {notifPerm === "granted" && push.state !== "subscribed" && push.state !== "unsupported" && (
-            <div style={{ background: "var(--violet-bg)", border: "1px solid var(--violet)", borderRadius: 12, padding: "10px 12px", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
-              <Icon name="bell" size={14} color="var(--violet)" />
-              <span style={{ flex: 1, fontSize: ".72rem", color: "var(--text)", fontWeight: 600 }}>
-                Activer notifs persistantes (marche app fermée)
-              </span>
-              <button
-                onClick={async () => {
-                  try { await push.subscribe(); }
-                  catch (e) {
-                    const msg = e instanceof Error ? `${e.name}: ${e.message}`
-                      : (typeof e === "object" && e !== null) ? JSON.stringify(e)
-                      : String(e);
-                    alert("Échec activation push — " + msg);
-                  }
-                }}
-                style={{ padding: "5px 11px", border: "none", borderRadius: 8, background: "var(--violet)", color: "white", fontSize: ".68rem", fontWeight: 800, cursor: "pointer", flexShrink: 0 }}
-              >
-                Activer
-              </button>
-            </div>
-          )}
-          {notifPerm === "granted" && (
-            <div style={{ background: push.state === "subscribed" ? "var(--green-bg)" : "var(--soft)", border: `1px solid ${push.state === "subscribed" ? "var(--green)" : "var(--border)"}`, borderRadius: 12, padding: "8px 12px", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
-              <Icon name="bell" size={14} color={push.state === "subscribed" ? "var(--green)" : "var(--muted)"} />
-              <span style={{ flex: 1, fontSize: ".72rem", color: "var(--text)", fontWeight: 600 }}>
-                {push.state === "subscribed"
-                  ? `Push actif · ${tasks.filter((t) => t.dueTime).length} tâche${tasks.filter((t) => t.dueTime).length !== 1 ? "s" : ""} avec heure`
-                  : `Local · ${tasks.filter((t) => t.dueTime).length} tâche${tasks.filter((t) => t.dueTime).length !== 1 ? "s" : ""} avec heure`}
-              </span>
-              <button
-                onClick={async () => {
-                  const opts = { body: "Si tu vois ça, les notifs marchent ✓", icon: "/icons/icon-192.png", badge: "/icons/icon-192.png" };
-                  try {
-                    if ("serviceWorker" in navigator) {
-                      const reg = await navigator.serviceWorker.ready;
-                      if (reg) { reg.showNotification("Test notif 🔔", opts); return; }
-                    }
-                    new Notification("Test notif 🔔", opts);
-                  } catch (e) { alert("Notif failed: " + String(e)); }
-                }}
-                style={{ padding: "4px 10px", border: `1px solid ${push.state === "subscribed" ? "var(--green)" : "var(--border)"}`, borderRadius: 8, background: "transparent", color: push.state === "subscribed" ? "var(--green)" : "var(--muted)", fontSize: ".68rem", fontWeight: 800, cursor: "pointer", flexShrink: 0 }}
-              >
-                Tester
-              </button>
-            </div>
-          )}
-          {notifPerm === "denied" && (
-            <div style={{ background: "var(--danger-bg)", border: "1px solid var(--danger)", borderRadius: 12, padding: "10px 14px", marginBottom: 12, fontSize: ".72rem", color: "var(--text)" }}>
-              Notifications bloquées. Réglages iPhone → Notre Foyer → autoriser.
-            </div>
-          )}
           {/* Recherche */}
           <div style={{ position: "relative", marginBottom: 12 }}>
             <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--muted2)" }}>
               <Icon name="search" size={15} />
             </div>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher…" style={{ ...inputStyle, paddingLeft: 36 }} />
+            <input aria-label="Rechercher une tâche" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher…" style={{ ...inputStyle, paddingLeft: 36 }} />
           </div>
 
           {/* Filtres */}
@@ -216,36 +114,16 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
 
           {/* Formulaire d'ajout */}
           {show ? (
-            <div style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 16, padding: 16, marginBottom: 14, animation: "fadeUp .2s ease" }}>
-              <input value={fname} onChange={(e) => setFname(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} placeholder="Nom de la tâche…" style={{ ...inputStyle, marginBottom: 8, background: "var(--surface)" }} />
-              <MemberToggleBar members={members} selected={fms} onChange={setFms} />
-              <select value={fd} onChange={(e) => setFd(e.target.value)} style={{ ...inputStyle, marginBottom: 8, background: "var(--surface)" }}>
-                {DAYS_F.map((d, i) => <option key={i} value={i}>{d}</option>)}
-              </select>
-              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                <select value={fr} onChange={(e) => setFr(e.target.value)} style={{ ...inputStyle, flex: 1, background: "var(--surface)" }}>
-                  {rooms.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-                </select>
-                <input type="time" value={ftime} onChange={(e) => setFtime(e.target.value)} style={{ ...inputStyle, flex: 1, background: "var(--surface)" }} />
-              </div>
-              <div style={{ display: "flex", gap: 5, marginBottom: 8 }}>
-                {(["low", "med", "high"] as Priority[]).map((p) => {
-                  const c = PRIORITY_CONFIG[p];
-                  return <button key={p} onClick={() => setFp(p)} style={{ flex: 1, padding: "7px 4px", border: `1.5px solid ${fp === p ? c.color : "var(--border)"}`, borderRadius: 8, background: fp === p ? c.bg : "var(--surface)", color: fp === p ? c.color : "var(--muted)", fontSize: ".7rem", fontWeight: 700, cursor: "pointer" }}>{c.label}</button>;
-                })}
-              </div>
-              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 8 }}>
-                {(["once", "daily", "weekly", "monthly", "annual"] as Recurrence[]).map((rec) => {
-                  const a = frec === rec;
-                  return <button key={rec} onClick={() => setFrec(rec)} style={{ flex: "1 1 0", minWidth: 52, padding: "6px 4px", border: `1.5px solid ${a ? "var(--text)" : "var(--border)"}`, borderRadius: 8, background: a ? "var(--text)" : "var(--surface)", color: a ? "var(--bg)" : "var(--muted)", fontSize: ".65rem", fontWeight: 700, cursor: "pointer" }}>{RECURRENCE_CONFIG[rec].short}</button>;
-                })}
-              </div>
-              <input value={fnote} onChange={(e) => setFnote(e.target.value)} placeholder="Note optionnelle…" style={{ ...inputStyle, marginBottom: 8, background: "var(--surface)", fontSize: ".8rem" }} />
-              <WorkConflictAlert conflict={conflict} />
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={submit} disabled={!!conflict} style={{ ...primaryBtn, flex: 1, opacity: conflict ? 0.6 : 1, cursor: conflict ? "not-allowed" : "pointer" }}>{conflict ? "⚠️ Conflit" : "Ajouter ✓"}</button>
-                <button onClick={() => setShow(false)} style={{ ...ghostBtn, flex: 1 }}>Annuler</button>
-              </div>
+            <div style={{ marginBottom: 14 }}>
+              <TaskForm
+                key={prefillName}
+                members={members}
+                rooms={rooms}
+                showNote
+                initialName={prefillName}
+                onSubmit={(t) => { addTask(t); setShow(false); setPrefillName(""); }}
+                onCancel={() => { setShow(false); setPrefillName(""); }}
+              />
             </div>
           ) : (
             <div
@@ -281,7 +159,7 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
               <div style={{ fontSize: ".68rem", fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 8 }}>Suggestions rapides</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {["Faire la vaisselle", "Passer l'aspirateur", "Sortir les poubelles", "Faire la lessive", "Préparer les repas", "Nettoyer la cuisine"].map((s) => (
-                  <button key={s} onClick={() => { setFname(s); setShow(true); }} style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 8, padding: "5px 10px", fontSize: ".72rem", fontWeight: 600, color: "var(--muted)", cursor: "pointer" }}>{s}</button>
+                  <button key={s} onClick={() => { setPrefillName(s); setShow(true); }} style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 8, padding: "5px 10px", fontSize: ".72rem", fontWeight: 600, color: "var(--muted)", cursor: "pointer" }}>{s}</button>
                 ))}
               </div>
             </div>
@@ -304,30 +182,6 @@ export function TasksView({ members, tasks, rooms, reminders, addTask, toggleTas
       {/* ── ONGLET RAPPELS ── */}
       {activeTab === "reminders" && (
         <div style={{ padding: "16px" }}>
-          {/* Bannière notifications */}
-          <div style={{ background: notifPerm === "granted" ? "var(--green-bg)" : "var(--soft)", border: `1px solid ${notifPerm === "granted" ? "var(--green)" : "var(--border)"}`, borderRadius: 14, padding: "12px 14px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: notifPerm === "granted" ? "var(--green-bg)" : "var(--violet-bg)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Icon name="bell" size={17} color={notifPerm === "granted" ? "var(--green)" : "var(--violet)"} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: ".85rem" }}>
-                {notifPerm === "granted" ? "Notifications actives ✓" : "Notifications push"}
-              </div>
-              <div style={{ fontSize: ".68rem", color: "var(--muted)", marginTop: 1 }}>
-                {notifPerm === "granted"
-                  ? "Tâches avec heure et rappels vous notifieront"
-                  : notifPerm === "denied"
-                    ? "Bloquées — autorisez dans les réglages du navigateur"
-                    : "Activez pour être alerté des tâches et rappels"}
-              </div>
-            </div>
-            {notifPerm !== "granted" && notifPerm !== "denied" && (
-              <button onClick={requestNotifPerm} style={{ padding: "7px 14px", border: "none", borderRadius: 9, background: "var(--violet)", color: "var(--bg)", fontSize: ".75rem", fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
-                Activer
-              </button>
-            )}
-          </div>
-
           {/* Formulaire nouveau rappel */}
           <div style={{ background: "var(--soft)", border: "1px solid var(--border)", borderRadius: 16, padding: 16, marginBottom: 16 }}>
             <div style={{ fontWeight: 700, fontSize: ".8rem", marginBottom: 10, color: "var(--muted)" }}>Nouveau rappel</div>
